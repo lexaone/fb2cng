@@ -21,7 +21,6 @@ import (
 	"crypto/aes"
 	"crypto/ecdsa"
 	"crypto/ed25519"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
@@ -196,11 +195,11 @@ func (ctx rsaEncrypterVerifier) encryptKey(cek []byte, alg KeyAlgorithm) (recipi
 func (ctx rsaEncrypterVerifier) encrypt(cek []byte, alg KeyAlgorithm) ([]byte, error) {
 	switch alg {
 	case RSA1_5:
-		return rsa.EncryptPKCS1v15(randReader, ctx.publicKey, cek)
+		return rsa.EncryptPKCS1v15(RandReader, ctx.publicKey, cek)
 	case RSA_OAEP:
-		return rsa.EncryptOAEP(sha1.New(), randReader, ctx.publicKey, cek, []byte{})
+		return rsa.EncryptOAEP(sha1.New(), RandReader, ctx.publicKey, cek, []byte{})
 	case RSA_OAEP_256:
-		return rsa.EncryptOAEP(sha256.New(), randReader, ctx.publicKey, cek, []byte{})
+		return rsa.EncryptOAEP(sha256.New(), RandReader, ctx.publicKey, cek, []byte{})
 	}
 
 	return nil, ErrUnsupportedAlgorithm
@@ -289,9 +288,9 @@ func (ctx rsaDecrypterSigner) signPayload(payload []byte, alg SignatureAlgorithm
 		// TODO(https://github.com/go-jose/go-jose/issues/40): As of go1.20, the
 		// random parameter is legacy and ignored, and it can be nil.
 		// https://cs.opensource.google/go/go/+/refs/tags/go1.20:src/crypto/rsa/pkcs1v15.go;l=263;bpv=0;bpt=1
-		out, err = rsa.SignPKCS1v15(randReader, ctx.privateKey, hash, hashed)
+		out, err = rsa.SignPKCS1v15(RandReader, ctx.privateKey, hash, hashed)
 	case PS256, PS384, PS512:
-		out, err = rsa.SignPSS(randReader, ctx.privateKey, hash, hashed, &rsa.PSSOptions{
+		out, err = rsa.SignPSS(RandReader, ctx.privateKey, hash, hashed, &rsa.PSSOptions{
 			SaltLength: rsa.PSSSaltLengthEqualsHash,
 		})
 	}
@@ -392,7 +391,7 @@ func (ctx ecKeyGenerator) keySize() int {
 
 // Get a content encryption key for ECDH-ES
 func (ctx ecKeyGenerator) genKey() ([]byte, rawHeader, error) {
-	priv, err := ecdsa.GenerateKey(ctx.publicKey.Curve, randReader)
+	priv, err := ecdsa.GenerateKey(ctx.publicKey.Curve, RandReader)
 	if err != nil {
 		return nil, rawHeader{}, err
 	}
@@ -484,7 +483,7 @@ func (ctx edDecrypterSigner) signPayload(payload []byte, alg SignatureAlgorithm)
 		return Signature{}, ErrUnsupportedAlgorithm
 	}
 
-	sig, err := ctx.privateKey.Sign(randReader, payload, crypto.Hash(0))
+	sig, err := ctx.privateKey.Sign(RandReader, payload, crypto.Hash(0))
 	if err != nil {
 		return Signature{}, err
 	}
@@ -534,7 +533,7 @@ func (ctx ecDecrypterSigner) signPayload(payload []byte, alg SignatureAlgorithm)
 	_, _ = hasher.Write(payload)
 	hashed := hasher.Sum(nil)
 
-	r, s, err := ecdsa.Sign(randReader, ctx.privateKey, hashed)
+	r, s, err := ecdsa.Sign(RandReader, ctx.privateKey, hashed)
 	if err != nil {
 		return Signature{}, err
 	}
@@ -572,21 +571,12 @@ func (ctx ecEncrypterVerifier) verifyPayload(payload []byte, signature []byte, a
 	case ES256:
 		keySize = 32
 		hash = crypto.SHA256
-		if ctx.publicKey.Curve != elliptic.P256() {
-			return fmt.Errorf("go-jose/go-jose: signature uses different algorithm than public key")
-		}
 	case ES384:
 		keySize = 48
 		hash = crypto.SHA384
-		if ctx.publicKey.Curve != elliptic.P384() {
-			return fmt.Errorf("go-jose/go-jose: signature uses different algorithm than public key")
-		}
 	case ES512:
 		keySize = 66
 		hash = crypto.SHA512
-		if ctx.publicKey.Curve != elliptic.P521() {
-			return fmt.Errorf("go-jose/go-jose: signature uses different algorithm than public key")
-		}
 	default:
 		return ErrUnsupportedAlgorithm
 	}

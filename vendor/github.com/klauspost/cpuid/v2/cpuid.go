@@ -68,8 +68,6 @@ const (
 	THead
 	Andes
 	SpacemiT
-	Microchip
-	MIPS
 
 	lastVendor
 )
@@ -479,7 +477,6 @@ func init() {
 // exported CPU variable.
 func Detect() {
 	// Set defaults
-	topoSnapshot.Store(nil)
 	CPU.ThreadsPerCore = 1
 	CPU.Cache.L1I = -1
 	CPU.Cache.L1D = -1
@@ -1226,14 +1223,10 @@ func (c *CPUInfo) cacheSize() {
 					// 2 = Instruction Cache
 					c.Cache.L1I = size
 				} else {
-					// Unified cache; apply to whichever of L1D/L1I is still
-					// unset. L1D/L1I are zeroed for Intel and pre-populated
-					// from CPUID 0x80000005 for AMD/Hygon, so check for both
-					// the -1 sentinel and an unset zero value.
-					if c.Cache.L1D <= 0 {
-						c.Cache.L1D = size
+					if c.Cache.L1D < 0 {
+						c.Cache.L1I = size
 					}
-					if c.Cache.L1I <= 0 {
+					if c.Cache.L1I < 0 {
 						c.Cache.L1I = size
 					}
 				}
@@ -1302,12 +1295,10 @@ func (c *CPUInfo) cacheSize() {
 					// Inst cache
 					c.Cache.L1I = size
 				default:
-					// Unified cache; apply to whichever of L1D/L1I is still
-					// unset (see the Intel path for the <= 0 rationale).
-					if c.Cache.L1D <= 0 {
-						c.Cache.L1D = size
+					if c.Cache.L1D < 0 {
+						c.Cache.L1I = size
 					}
-					if c.Cache.L1I <= 0 {
+					if c.Cache.L1I < 0 {
 						c.Cache.L1I = size
 					}
 				}

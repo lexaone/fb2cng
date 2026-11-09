@@ -48,6 +48,8 @@ type (
 		RemoveTransparency bool                     `yaml:"remove_transparency"`
 		RasterizeSVG       bool                     `yaml:"rasterize_svg"`
 		RasterFormat       common.RasterFormat      `yaml:"raster_format" validate:"gte=0,lte=1"`
+		Resize             string                   `yaml:"resize" validate:"omitempty,oneof=none fit"`
+		BaselineJPEG       bool                     `yaml:"baseline_jpeg"`
 		ScaleFactor        float64                  `yaml:"scale_factor" validate:"gte=0.0"`
 		Optimize           bool                     `yaml:"optimize"`
 		JPEGQuality        int                      `yaml:"jpeg_quality_level" validate:"min=40,max=100"`
@@ -65,9 +67,10 @@ type (
 	}
 
 	AnnotationConfig struct {
-		Enable bool   `yaml:"enable"`
-		Title  string `yaml:"title" validate:"required_unless=Enable false"`
-		InTOC  bool   `yaml:"in_toc"`
+		IncludeYear 	bool   `yaml:"include_year"`
+		Enable 				bool   `yaml:"enable"`
+		Title  				string `yaml:"title" validate:"required_unless=Enable false"`
+		InTOC  				bool   `yaml:"in_toc"`
 	}
 
 	TOCPageConfig struct {
@@ -135,6 +138,7 @@ type (
 		StylesheetPath        string                `yaml:"stylesheet_path,omitempty" sanitize:"assure_file_access"`
 		OutputNameTemplate    string                `yaml:"output_name_template"`
 		FileNameTransliterate bool                  `yaml:"file_name_transliterate"`
+		EmptyLineAsBR         bool                  `yaml:"empty_line_as_br"`
 		InsertSoftHyphen      bool                  `yaml:"insert_soft_hyphen"`
 		Images                ImagesConfig          `yaml:"images"`
 		Footnotes             FootnotesConfig       `yaml:"footnotes"`

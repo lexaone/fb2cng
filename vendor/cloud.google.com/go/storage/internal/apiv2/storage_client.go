@@ -1054,79 +1054,6 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error
 		client.CallOptions.QueryWriteStatus = append(client.CallOptions.QueryWriteStatus, gax.WithClientMetrics(metrics))
 		client.CallOptions.MoveObject = append(client.CallOptions.MoveObject, gax.WithClientMetrics(metrics))
 	}
-	if gax.IsFeatureEnabled("TRACING") {
-		tracing := gax.NewClientTracing(
-			gax.WithTracingAttributes(map[string]string{
-				gax.ClientService:  "storage",
-				gax.ClientVersion:  getVersionClient(),
-				gax.ClientArtifact: "cloud.google.com/go/storage/internal/apiv2",
-				gax.RPCSystem:      "grpc",
-				gax.URLDomain:      "storage.googleapis.com",
-			}),
-		)
-
-		client.CallOptions.DeleteBucket = append(client.CallOptions.DeleteBucket, gax.WithClientTracing(tracing))
-		client.CallOptions.GetBucket = append(client.CallOptions.GetBucket, gax.WithClientTracing(tracing))
-		client.CallOptions.CreateBucket = append(client.CallOptions.CreateBucket, gax.WithClientTracing(tracing))
-		client.CallOptions.ListBuckets = append(client.CallOptions.ListBuckets, gax.WithClientTracing(tracing))
-		client.CallOptions.LockBucketRetentionPolicy = append(client.CallOptions.LockBucketRetentionPolicy, gax.WithClientTracing(tracing))
-		client.CallOptions.GetIamPolicy = append(client.CallOptions.GetIamPolicy, gax.WithClientTracing(tracing))
-		client.CallOptions.SetIamPolicy = append(client.CallOptions.SetIamPolicy, gax.WithClientTracing(tracing))
-		client.CallOptions.TestIamPermissions = append(client.CallOptions.TestIamPermissions, gax.WithClientTracing(tracing))
-		client.CallOptions.UpdateBucket = append(client.CallOptions.UpdateBucket, gax.WithClientTracing(tracing))
-		client.CallOptions.ComposeObject = append(client.CallOptions.ComposeObject, gax.WithClientTracing(tracing))
-		client.CallOptions.DeleteObject = append(client.CallOptions.DeleteObject, gax.WithClientTracing(tracing))
-		client.CallOptions.RestoreObject = append(client.CallOptions.RestoreObject, gax.WithClientTracing(tracing))
-		client.CallOptions.CancelResumableWrite = append(client.CallOptions.CancelResumableWrite, gax.WithClientTracing(tracing))
-		client.CallOptions.GetObject = append(client.CallOptions.GetObject, gax.WithClientTracing(tracing))
-		client.CallOptions.ReadObject = append(client.CallOptions.ReadObject, gax.WithClientTracing(tracing))
-		client.CallOptions.BidiReadObject = append(client.CallOptions.BidiReadObject, gax.WithClientTracing(tracing))
-		client.CallOptions.UpdateObject = append(client.CallOptions.UpdateObject, gax.WithClientTracing(tracing))
-		client.CallOptions.WriteObject = append(client.CallOptions.WriteObject, gax.WithClientTracing(tracing))
-		client.CallOptions.BidiWriteObject = append(client.CallOptions.BidiWriteObject, gax.WithClientTracing(tracing))
-		client.CallOptions.ListObjects = append(client.CallOptions.ListObjects, gax.WithClientTracing(tracing))
-		client.CallOptions.RewriteObject = append(client.CallOptions.RewriteObject, gax.WithClientTracing(tracing))
-		client.CallOptions.StartResumableWrite = append(client.CallOptions.StartResumableWrite, gax.WithClientTracing(tracing))
-		client.CallOptions.QueryWriteStatus = append(client.CallOptions.QueryWriteStatus, gax.WithClientTracing(tracing))
-		client.CallOptions.MoveObject = append(client.CallOptions.MoveObject, gax.WithClientTracing(tracing))
-	}
-	if gax.IsFeatureEnabled("LOGGING") {
-		logging := gax.NewClientLogging(
-			gax.WithLoggerProvider(c.logger),
-			gax.WithLoggingAttributes(map[string]string{
-				gax.ClientService:  "storage",
-				gax.ClientVersion:  getVersionClient(),
-				gax.ClientArtifact: "cloud.google.com/go/storage/internal/apiv2",
-				gax.RPCSystem:      "grpc",
-				gax.URLDomain:      "storage.googleapis.com",
-			}),
-		)
-
-		client.CallOptions.DeleteBucket = append(client.CallOptions.DeleteBucket, gax.WithClientLogging(logging))
-		client.CallOptions.GetBucket = append(client.CallOptions.GetBucket, gax.WithClientLogging(logging))
-		client.CallOptions.CreateBucket = append(client.CallOptions.CreateBucket, gax.WithClientLogging(logging))
-		client.CallOptions.ListBuckets = append(client.CallOptions.ListBuckets, gax.WithClientLogging(logging))
-		client.CallOptions.LockBucketRetentionPolicy = append(client.CallOptions.LockBucketRetentionPolicy, gax.WithClientLogging(logging))
-		client.CallOptions.GetIamPolicy = append(client.CallOptions.GetIamPolicy, gax.WithClientLogging(logging))
-		client.CallOptions.SetIamPolicy = append(client.CallOptions.SetIamPolicy, gax.WithClientLogging(logging))
-		client.CallOptions.TestIamPermissions = append(client.CallOptions.TestIamPermissions, gax.WithClientLogging(logging))
-		client.CallOptions.UpdateBucket = append(client.CallOptions.UpdateBucket, gax.WithClientLogging(logging))
-		client.CallOptions.ComposeObject = append(client.CallOptions.ComposeObject, gax.WithClientLogging(logging))
-		client.CallOptions.DeleteObject = append(client.CallOptions.DeleteObject, gax.WithClientLogging(logging))
-		client.CallOptions.RestoreObject = append(client.CallOptions.RestoreObject, gax.WithClientLogging(logging))
-		client.CallOptions.CancelResumableWrite = append(client.CallOptions.CancelResumableWrite, gax.WithClientLogging(logging))
-		client.CallOptions.GetObject = append(client.CallOptions.GetObject, gax.WithClientLogging(logging))
-		client.CallOptions.ReadObject = append(client.CallOptions.ReadObject, gax.WithClientLogging(logging))
-		client.CallOptions.BidiReadObject = append(client.CallOptions.BidiReadObject, gax.WithClientLogging(logging))
-		client.CallOptions.UpdateObject = append(client.CallOptions.UpdateObject, gax.WithClientLogging(logging))
-		client.CallOptions.WriteObject = append(client.CallOptions.WriteObject, gax.WithClientLogging(logging))
-		client.CallOptions.BidiWriteObject = append(client.CallOptions.BidiWriteObject, gax.WithClientLogging(logging))
-		client.CallOptions.ListObjects = append(client.CallOptions.ListObjects, gax.WithClientLogging(logging))
-		client.CallOptions.RewriteObject = append(client.CallOptions.RewriteObject, gax.WithClientLogging(logging))
-		client.CallOptions.StartResumableWrite = append(client.CallOptions.StartResumableWrite, gax.WithClientLogging(logging))
-		client.CallOptions.QueryWriteStatus = append(client.CallOptions.QueryWriteStatus, gax.WithClientLogging(logging))
-		client.CallOptions.MoveObject = append(client.CallOptions.MoveObject, gax.WithClientLogging(logging))
-	}
 
 	client.internalClient = c
 
@@ -1172,6 +1099,9 @@ func (c *gRPCClient) DeleteBucket(ctx context.Context, req *storagepb.DeleteBuck
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//storage.googleapis.com/%v", req.GetName()))
+	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.storage.v2.Storage/DeleteBucket")
 	}
@@ -1198,6 +1128,9 @@ func (c *gRPCClient) GetBucket(ctx context.Context, req *storagepb.GetBucketRequ
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//storage.googleapis.com/%v", req.GetName()))
+	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.storage.v2.Storage/GetBucket")
 	}
@@ -1231,6 +1164,9 @@ func (c *gRPCClient) CreateBucket(ctx context.Context, req *storagepb.CreateBuck
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//storage.googleapis.com/%v", req.GetParent()))
+	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.storage.v2.Storage/CreateBucket")
 	}
@@ -1261,6 +1197,9 @@ func (c *gRPCClient) ListBuckets(ctx context.Context, req *storagepb.ListBuckets
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//storage.googleapis.com/%v", req.GetParent()))
+	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.storage.v2.Storage/ListBuckets")
 	}
@@ -1319,6 +1258,9 @@ func (c *gRPCClient) LockBucketRetentionPolicy(ctx context.Context, req *storage
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//storage.googleapis.com/%v", req.GetBucket()))
+	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.storage.v2.Storage/LockBucketRetentionPolicy")
 	}
@@ -1352,6 +1294,9 @@ func (c *gRPCClient) GetIamPolicy(ctx context.Context, req *iampb.GetIamPolicyRe
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//storage.googleapis.com/%v", req.GetResource()))
+	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.storage.v2.Storage/GetIamPolicy")
 	}
@@ -1385,6 +1330,9 @@ func (c *gRPCClient) SetIamPolicy(ctx context.Context, req *iampb.SetIamPolicyRe
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//storage.googleapis.com/%v", req.GetResource()))
+	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.storage.v2.Storage/SetIamPolicy")
 	}
@@ -1421,6 +1369,9 @@ func (c *gRPCClient) TestIamPermissions(ctx context.Context, req *iampb.TestIamP
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//storage.googleapis.com/%v", req.GetResource()))
+	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.storage.v2.Storage/TestIamPermissions")
 	}
@@ -1481,6 +1432,9 @@ func (c *gRPCClient) ComposeObject(ctx context.Context, req *storagepb.ComposeOb
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//storage.googleapis.com/%v", req.GetKmsKey()))
+	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.storage.v2.Storage/ComposeObject")
 	}
@@ -1511,6 +1465,9 @@ func (c *gRPCClient) DeleteObject(ctx context.Context, req *storagepb.DeleteObje
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//storage.googleapis.com/%v", req.GetBucket()))
+	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.storage.v2.Storage/DeleteObject")
 	}
@@ -1537,6 +1494,9 @@ func (c *gRPCClient) RestoreObject(ctx context.Context, req *storagepb.RestoreOb
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//storage.googleapis.com/%v", req.GetBucket()))
+	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.storage.v2.Storage/RestoreObject")
 	}
@@ -1597,6 +1557,9 @@ func (c *gRPCClient) GetObject(ctx context.Context, req *storagepb.GetObjectRequ
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//storage.googleapis.com/%v", req.GetBucket()))
+	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.storage.v2.Storage/GetObject")
 	}
@@ -1627,6 +1590,9 @@ func (c *gRPCClient) ReadObject(ctx context.Context, req *storagepb.ReadObjectRe
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//storage.googleapis.com/%v", req.GetBucket()))
+	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.storage.v2.Storage/ReadObject")
 	}
@@ -1749,6 +1715,9 @@ func (c *gRPCClient) ListObjects(ctx context.Context, req *storagepb.ListObjects
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//storage.googleapis.com/%v", req.GetParent()))
+	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.storage.v2.Storage/ListObjects")
 	}
@@ -1810,6 +1779,9 @@ func (c *gRPCClient) RewriteObject(ctx context.Context, req *storagepb.RewriteOb
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//storage.googleapis.com/%v", req.GetDestinationBucket()))
+	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.storage.v2.Storage/RewriteObject")
 	}
@@ -1900,6 +1872,9 @@ func (c *gRPCClient) MoveObject(ctx context.Context, req *storagepb.MoveObjectRe
 
 	hds = append(c.xGoogHeaders, hds...)
 	ctx = gax.InsertMetadataIntoOutgoingContext(ctx, hds...)
+	if gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
+		ctx = callctx.WithTelemetryContext(ctx, "resource_name", fmt.Sprintf("//storage.googleapis.com/%v", req.GetBucket()))
+	}
 	if gax.IsFeatureEnabled("METRICS") || gax.IsFeatureEnabled("TRACING") || gax.IsFeatureEnabled("LOGGING") {
 		ctx = callctx.WithTelemetryContext(ctx, "rpc_method", "google.storage.v2.Storage/MoveObject")
 	}

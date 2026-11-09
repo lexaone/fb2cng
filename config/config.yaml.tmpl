@@ -90,6 +90,8 @@ document:
   # modern day Kindles always have hyphenation turned on for Russian language
   # (and off for English)
   insert_soft_hyphen: false
+  # EPUB: emit <br class="emptyline"/> for FB2 empty-line instead of an empty div.
+  empty_line_as_br: false
 
   kfx:
     # Applies equally to --to kfx and --to azw8; ignored for other formats.
@@ -239,7 +241,11 @@ document:
     # For Kobo, jpeg takes precedence over WebP-to-PNG compatibility conversion.
     raster_format: auto
 
-    # Resize all images (but cover) with specified ratio
+    # none: retain legacy scale_factor; fit: downsize only to screen, ignoring scale_factor.
+    resize: none
+    # Re-encode non-baseline JPEGs even when no other image changes are needed.
+    baseline_jpeg: false
+    # Legacy ratio for non-cover images, used only when resize is none.
     scale_factor: 1.0
 
     # Enable optional JPEG/PNG recompression. This does not control resizing,
@@ -291,6 +297,7 @@ document:
       # "stretch" - unconditionally resize to specified screen width and height
       # "fit"     - resize up or down to fit specified screen width and height
       # keeping aspect ratio
+      # "crop"    - fill the screen proportionally, retaining excess pixels (no cutting)
       resize: stretch
 
   footnotes:
@@ -403,6 +410,8 @@ document:
       {{- end -}}
 
   annotation:
+    # EPUB: append title-info/date year with CSS class annotation-year.
+    include_year: false
     # Create separate "chapter" with book annotation if available
     enable: false
 

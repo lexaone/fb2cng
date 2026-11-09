@@ -178,8 +178,6 @@ func (m *HealthCheck) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for Name
-
 	if m.GetTimeout() == nil {
 		err := HealthCheckValidationError{
 			field:  "Timeout",
@@ -1425,8 +1423,6 @@ func (m *HealthCheck_HttpHealthCheck) validate(all bool) error {
 		}
 		errors = append(errors, err)
 	}
-
-	// no validation rules for UseAlpnProtocol
 
 	if all {
 		switch v := interface{}(m.GetServiceNameMatcher()).(type) {

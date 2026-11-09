@@ -78,11 +78,10 @@ func parseISAString(c *CPUInfo, isa string) {
 }
 
 var riscvVendorMap = map[uint64]Vendor{
-	0x029: Microchip,
-	0x127: MIPS,
-	0x31e: Andes,
 	0x489: SiFive,
-	0x5b7: THead,
+	0x5b7: StarFive,
+	0x5b1: THead,
+	0x31e: Andes,
 	0x710: SpacemiT,
 }
 

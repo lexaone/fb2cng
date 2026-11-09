@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 
-	"github.com/dlclark/regexp2/v2/helpers"
 	"github.com/dlclark/regexp2/v2/syntax"
 )
 
@@ -25,15 +24,6 @@ type MatchEvaluator func(Match) string
 func writeRunes(buf *bytes.Buffer, text []rune, start, end int) {
 	for i := start; i < end; i++ {
 		buf.WriteRune(text[i])
-	}
-}
-
-func writeUnmatched(buf *bytes.Buffer, input string, d *decodedInput, start, end int) {
-	// Equal byte/rune lengths can include invalid UTF-8, which must be re-encoded.
-	if d.ascii {
-		buf.WriteString(input[start:end])
-	} else {
-		writeRunes(buf, d.runes, start, end)
 	}
 }
 
@@ -168,21 +158,11 @@ func replaceRunnerLTR(regex *Regexp, data *syntax.ReplacerData, input string, st
 	if startAt > len(input) {
 		return "", errors.New("startAt must be less than the length of the input string")
 	}
-	// Short inputs are cheaper to decode directly. For longer inputs, validate
-	// startAt before rejecting a miss. Keep the original scan start: anchors
-	// and replacement rules may need context before the candidate.
-	if len(input) >= helpers.ASCIISearchMin {
-		if _, ok, err := regex.findStringMatchStart(input, startAt); err != nil {
-			return "", err
-		} else if !ok {
-			return input, nil
-		}
-	}
 
 	runner := regex.getRunner()
-	d := decodeInput(input, startAt, 0, regex.optimizations.MaxCachedRuneBufferLength)
+	d := decodeInput(input, startAt, 0, regex.optimizations.MaxCachedRuneBufferLength, false)
 	text := d.runes
-	textInfo := runner.stringMatchText(input, text, 0, 0)
+	textInfo := newStringMatchText(input, text)
 	defer func() {
 		regex.putRunner(runner)
 		d.release()
@@ -195,7 +175,7 @@ func replaceRunnerLTR(regex *Regexp, data *syntax.ReplacerData, input string, st
 		runeStart = 0
 	}
 
-	m, err := runner.scan(text, textInfo, runeStart, runeStart, -1, true, regex.MatchTimeout)
+	m, err := runner.scan(text, textInfo, runeStart, -1, true, regex.MatchTimeout)
 	if err != nil {
 		return "", err
 	}
@@ -216,7 +196,7 @@ func replaceRunnerLTR(regex *Regexp, data *syntax.ReplacerData, input string, st
 
 		local := m.runeSliceIndex()
 		if local != prevat {
-			writeUnmatched(buf, input, &d, prevat, local)
+			writeRunes(buf, text, prevat, local)
 		}
 		prevat = local + m.RuneLength
 		replacementImpl(data, buf, m)
@@ -226,14 +206,14 @@ func replaceRunnerLTR(regex *Regexp, data *syntax.ReplacerData, input string, st
 			break
 		}
 
-		m, err = runner.scan(text, textInfo, m.textpos, m.textpos, m.RuneLength, true, regex.MatchTimeout)
+		m, err = runner.scan(text, textInfo, m.textpos, m.RuneLength, true, regex.MatchTimeout)
 		if err != nil {
 			return "", err
 		}
 	}
 
 	if prevat < len(text) {
-		writeUnmatched(buf, input, &d, prevat, len(text))
+		writeRunes(buf, text, prevat, len(text))
 	}
 	return buf.String(), nil
 }
@@ -244,9 +224,9 @@ func replaceRunnerRTL(regex *Regexp, data *syntax.ReplacerData, input string, st
 	}
 
 	runner := regex.getRunner()
-	d := decodeInput(input, startAt, 0, regex.optimizations.MaxCachedRuneBufferLength)
+	d := decodeInput(input, startAt, 0, regex.optimizations.MaxCachedRuneBufferLength, false)
 	text := d.runes
-	textInfo := runner.stringMatchText(input, text, 0, 0)
+	textInfo := newStringMatchText(input, text)
 	defer func() {
 		regex.putRunner(runner)
 		d.release()
@@ -259,7 +239,7 @@ func replaceRunnerRTL(regex *Regexp, data *syntax.ReplacerData, input string, st
 		runeStart = len(text)
 	}
 
-	m, err := runner.scan(text, textInfo, runeStart, runeStart, -1, true, regex.MatchTimeout)
+	m, err := runner.scan(text, textInfo, runeStart, -1, true, regex.MatchTimeout)
 	if err != nil {
 		return "", err
 	}
@@ -282,12 +262,7 @@ func replaceRunnerRTL(regex *Regexp, data *syntax.ReplacerData, input string, st
 
 		local := m.runeSliceIndex()
 		if local+m.RuneLength != prevat {
-			// As in writeUnmatched, only ASCII permits copying original bytes.
-			if d.ascii {
-				al = append(al, input[local+m.RuneLength:prevat])
-			} else {
-				al = append(al, string(text[local+m.RuneLength:prevat]))
-			}
+			al = append(al, string(text[local+m.RuneLength:prevat]))
 		}
 		prevat = local
 		replacementImplRTL(data, &al, m)
@@ -297,14 +272,14 @@ func replaceRunnerRTL(regex *Regexp, data *syntax.ReplacerData, input string, st
 			break
 		}
 
-		m, err = runner.scan(text, textInfo, m.textpos, m.textpos, m.RuneLength, true, regex.MatchTimeout)
+		m, err = runner.scan(text, textInfo, m.textpos, m.RuneLength, true, regex.MatchTimeout)
 		if err != nil {
 			return "", err
 		}
 	}
 
 	if prevat > 0 {
-		writeUnmatched(buf, input, &d, 0, prevat)
+		writeRunes(buf, text, 0, prevat)
 	}
 	for i := len(al) - 1; i >= 0; i-- {
 		buf.WriteString(al[i])
@@ -347,10 +322,7 @@ func replacementImplRTL(data *syntax.ReplacerData, al *[]string, m *Match) {
 	l := *al
 	buf := &bytes.Buffer{}
 
-	// The caller reverses the complete segment list, so emit each
-	// replacement's fragments in reverse order as well.
-	for i := len(data.Rules) - 1; i >= 0; i-- {
-		r := data.Rules[i]
+	for _, r := range data.Rules {
 		buf.Reset()
 		if r >= 0 { // string lookup
 			l = append(l, data.Strings[r])

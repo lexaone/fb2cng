@@ -90,7 +90,7 @@ func NewSchemaless(attrs ...attribute.KeyValue) *Resource {
 		return &Resource{}
 	}
 
-	attrs, _ = attrnorm.KeyValuesDedup(attrs)
+	attrs, _ = attrnorm.KeyValues(attrs)
 
 	// Ensure attributes comply with the specification:
 	// https://github.com/open-telemetry/opentelemetry-specification/blob/v1.20.0/specification/common/README.md#attribute
@@ -120,9 +120,6 @@ func (r *Resource) String() string {
 
 // MarshalLog is the marshaling function used by the logging system to represent this Resource.
 func (r *Resource) MarshalLog() any {
-	if r == nil {
-		r = Empty()
-	}
 	return struct {
 		Attributes attribute.Set
 		SchemaURL  string

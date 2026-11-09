@@ -3,7 +3,6 @@ package regexp2
 import (
 	"bytes"
 	"fmt"
-	"sync/atomic"
 	"unicode/utf8"
 )
 
@@ -31,9 +30,6 @@ type Match struct {
 	// whether we've done any balancing with this match.  If we
 	// have done balancing, we'll need to do extra work in Tidy().
 	balancing bool
-
-	// landmarks holds the required landmark searches that found this match.
-	landmarks *requiredLandmarkState
 }
 
 // Group is an explicit or implit (group 0) matched group within the pattern
@@ -64,13 +60,6 @@ type matchText struct {
 	byteOffset       int // original-string byte index of runes[0]
 	byteOffsets      []int
 	byteOffsetsReady bool
-	// The first returned capture retains this metadata anyway. Store it here
-	// to avoid a separate allocation; subsequent matches need their own record.
-	initialCaptureUsed bool
-	initialCapture     [1]Capture
-	// landmarkMatch is the last match that FindNextMatch found in this text.
-	// The first call to continue from it takes its landmarks.
-	landmarkMatch atomic.Pointer[Match]
 }
 
 // String returns the captured text. For string input it is a slice of the
@@ -118,16 +107,17 @@ func newMatchText(r []rune) *matchText {
 	return &matchText{runes: r}
 }
 
-func (t *matchText) resetString(input string, r []rune, runeOffset, byteOffset int) {
-	*t = matchText{
+func newStringMatchText(input string, r []rune) *matchText {
+	return newStringMatchTextAt(input, r, 0, 0)
+}
+
+func newStringMatchTextAt(input string, r []rune, runeOffset, byteOffset int) *matchText {
+	return &matchText{
 		runes:          r,
 		input:          input,
 		hasStringInput: true,
 		runeOffset:     runeOffset,
 		byteOffset:     byteOffset,
-		// Every decoded rune consumes at least one byte, even invalid UTF-8.
-		// Equal lengths therefore mean byte and rune offsets are identical.
-		byteOffsetsReady: len(input)-byteOffset == len(r),
 	}
 }
 
@@ -151,25 +141,36 @@ func (t *matchText) byteRange(runeIndex, runeLength int) (int, int) {
 
 func (t *matchText) buildByteOffsets() []int {
 	if t.hasStringInput {
-		return stringByteOffsets(t.input[t.byteOffset:], len(t.runes))
+		return stringByteOffsets(t.input[t.byteOffset:])
 	}
 	return runeByteOffsets(t.runes)
 }
 
-func stringByteOffsets(s string, runeCount int) []int {
-	if len(s) == runeCount {
-		return nil
+func stringByteOffsets(s string) []int {
+	var byteOffsets []int
+	runeIndex := 0
+	for strIdx, ch := range s {
+		if byteOffsets != nil {
+			byteOffsets[runeIndex] = strIdx
+		}
+		runeLen := utf8.RuneLen(ch)
+		if ch == utf8.RuneError {
+			_, runeLen = utf8.DecodeRuneInString(s[strIdx:])
+		}
+		if byteOffsets == nil && (strIdx != runeIndex || runeLen != 1) {
+			byteOffsets = make([]int, len(s)+1)
+			for i := 0; i < runeIndex; i++ {
+				byteOffsets[i] = i
+			}
+			byteOffsets[runeIndex] = strIdx
+		}
+		runeIndex++
 	}
-	// Decoding already established the rune count. A range walk gives the
-	// original byte positions, including one-byte invalid UTF-8 sequences.
-	offsets := make([]int, runeCount+1)
-	i := 0
-	for byteIndex := range s {
-		offsets[i] = byteIndex
-		i++
+	if byteOffsets != nil {
+		byteOffsets[runeIndex] = len(s)
+		return byteOffsets[:runeIndex+1]
 	}
-	offsets[runeCount] = len(s)
-	return offsets
+	return nil
 }
 
 func runeByteOffsets(runes []rune) []int {
@@ -199,35 +200,19 @@ func runeByteOffsets(runes []rune) []int {
 }
 
 func newMatch(regex *Regexp, capcount int, text *matchText, startpos int) *Match {
-	var m *Match
-	if capcount == 1 {
-		// With no explicit capture groups, keep the whole-match bookkeeping in
-		// one allocation rather than allocating three separate slice backings.
-		storage := new(struct {
-			Match
-			countsAndInterval [3]int
-			intervals         [1][]int
-		})
-		m = &storage.Match
-		m.matchcount = storage.countsAndInterval[:1:1]
-		m.matches = storage.intervals[:]
-		m.matches[0] = storage.countsAndInterval[1:]
-	} else {
-		// Capture counts and the initial whole-match interval have the same lifetime.
-		countsAndInterval := make([]int, capcount+2)
-		m = &Match{
-			matchcount: countsAndInterval[:capcount:capcount],
-			matches:    make([][]int, capcount),
-		}
-		m.matches[0] = countsAndInterval[capcount:]
+	m := Match{
+		regex:      regex,
+		matchcount: make([]int, capcount),
+		matches:    make([][]int, capcount),
+		textstart:  startpos,
+		balancing:  false,
 	}
-	m.regex = regex
-	m.textstart = startpos
 	if (regex.options & ECMAScript) == 0 {
 		m.Name = "0"
 	}
 	m.text = text
-	return m
+	m.matches[0] = make([]int, 2)
+	return &m
 }
 
 func newMatchSparse(regex *Regexp, caps map[int]int, capcount int, text *matchText, startpos int) *Match {
@@ -252,13 +237,7 @@ func (m *Match) tidy(textpos int) {
 	m.textpos = textpos
 	m.capcount = m.matchcount[0]
 	//copy our root capture to the list
-	if m.text != nil && !m.text.initialCaptureUsed {
-		m.text.initialCaptureUsed = true
-		m.text.initialCapture[0] = m.Capture
-		m.Captures = m.text.initialCapture[:]
-	} else {
-		m.Captures = []Capture{m.Capture}
-	}
+	m.Captures = []Capture{m.Capture}
 	if m.text != nil && m.text.hasStringInput {
 		m.text.ensureByteOffsets()
 	}
@@ -391,20 +370,7 @@ func (m *Match) GroupCount() int {
 }
 
 // GroupByName returns a group based on the name of the group, or nil if the group name does not exist
-// For duplicate ECMAScript names, it selects the participating group, or the
-// first declaration if none participated.
 func (m *Match) GroupByName(name string) *Group {
-	// Participating selection follows ECMAScript 2025 §22.2.7.2 RegExpBuiltinExec,
-	// step 34.5;
-	// https://tc39.es/ecma262/2025/multipage/text-processing.html#sec-regexpbuiltinexec
-	if slots := m.regex.duplicateCapnames[name]; len(slots) > 0 {
-		for _, slot := range slots {
-			if m.isMatched(slot) {
-				return m.groupByIndex(slot)
-			}
-		}
-		return m.groupByIndex(slots[0])
-	}
 	num := m.regex.GroupNumberFromName(name)
 	if num < 0 {
 		return nil
@@ -416,16 +382,10 @@ func (m *Match) GroupByName(name string) *Group {
 func (m *Match) GroupByNumber(num int) *Group {
 	// check our sparse map
 	if m.sparseCaps != nil {
-		newNum, ok := m.sparseCaps[num]
-		if !ok {
-			return nil
+		if newNum, ok := m.sparseCaps[num]; ok {
+			num = newNum
 		}
-		num = newNum
 	}
-	return m.groupByIndex(num)
-}
-
-func (m *Match) groupByIndex(num int) *Group {
 	if num >= len(m.matchcount) || num < 0 {
 		return nil
 	}

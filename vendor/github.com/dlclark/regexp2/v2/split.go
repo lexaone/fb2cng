@@ -3,7 +3,6 @@ package regexp2
 import (
 	"errors"
 	"math"
-	"slices"
 )
 
 // Split splits the given input string using the pattern and returns
@@ -31,58 +30,23 @@ func (re *Regexp) Split(input string, count int) ([]string, error) {
 		count = math.MaxInt
 	}
 
-	startAt, ok, err := re.findStringMatchStart(input, -1)
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return []string{input}, nil
-	}
-	d := decodeInput(input, startAt, re.decodeFrom(input, startAt), re.optimizations.MaxCachedRuneBufferLength)
-	runner := re.getRunner()
-	defer func() {
-		re.putRunner(runner)
-		d.release()
-	}()
-	text := runner.stringMatchText(input, d.runes, 0, d.byteOffset)
-
-	// Keep captures in the reusable match, but only materialize output strings.
-	// Passing text also ensures registered engines use their capturing program.
+	// iterate through the matches
 	priorIndex := 0
-	if re.RightToLeft() {
-		priorIndex = len(input)
-	}
 	var retVal []string
 	matched := false
 
-	origin := re.stringSearchOrigin(input, -1, d.runeStart)
-	m, err := runner.scan(d.runes, text, origin, d.runeStart, -1, true, re.MatchTimeout)
+	m, err := re.FindStringMatch(input)
 
-	for ; m != nil && count > 0; m, err = runner.scan(d.runes, text, m.textpos, m.textpos, m.RuneLength, true, re.MatchTimeout) {
-		if m.balancing {
-			compactBalancedMatches(m)
-		}
+	for ; m != nil && count > 0; m, err = re.FindNextMatch(m) {
 		matched = true
 		start, end := matchInputSpan(m)
-		if re.RightToLeft() {
-			retVal = append(retVal, input[end:priorIndex])
-		} else {
-			retVal = append(retVal, input[priorIndex:start])
-		}
-		// Preserve group order and empty strings for unmatched groups without
-		// allocating Group objects or their capture histories.
-		for group := 1; group < len(m.matchcount); group++ {
-			value := ""
-			if m.matchcount[group] > 0 {
-				capture := newCapture(text, m.matchIndex(group), m.matchLength(group))
-				value = capture.String()
-			}
-			retVal = append(retVal, value)
+		retVal = append(retVal, input[priorIndex:start])
+		// append any capture groups, skipping group 0
+		gs := m.Groups()
+		for i := 1; i < len(gs); i++ {
+			retVal = append(retVal, gs[i].String())
 		}
 		priorIndex = end
-		if re.RightToLeft() {
-			priorIndex = start
-		}
 		count--
 	}
 
@@ -94,11 +58,6 @@ func (re *Regexp) Split(input string, count int) ([]string, error) {
 		return []string{input}, nil
 	}
 
-	if re.RightToLeft() {
-		retVal = append(retVal, input[:priorIndex])
-		slices.Reverse(retVal)
-	} else {
-		retVal = append(retVal, input[priorIndex:])
-	}
+	retVal = append(retVal, input[priorIndex:])
 	return retVal, nil
 }

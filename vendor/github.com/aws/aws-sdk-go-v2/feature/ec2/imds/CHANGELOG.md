@@ -1,35 +1,3 @@
-# v1.20.3 (2026-10-09.2)
-
-* **Dependency Update**: Update to smithy-go v1.28.5.
-* **Dependency Update**: Updated to the latest SDK module versions
-
-# v1.20.2 (2026-10-08)
-
-* **Dependency Update**: Update to smithy-go v1.28.4.
-* **Dependency Update**: Updated to the latest SDK module versions
-
-# v1.20.1 (2026-09-24)
-
-* **Dependency Update**: Updated to the latest SDK module versions
-
-# v1.20.0 (2026-09-09)
-
-* **Feature**: Stop registering the `retry.MetricsHeader` middleware in generated clients. The `Amz-Sdk-Request` header is now set by the retry middleware itself.
-* **Dependency Update**: Updated to the latest SDK module versions
-
-# v1.19.2 (2026-09-04)
-
-* **Dependency Update**: Updated to the latest SDK module versions
-
-# v1.19.1 (2026-08-28)
-
-* **Dependency Update**: Updated to the latest SDK module versions
-
-# v1.19.0 (2026-08-27)
-
-* **Feature**: Support connection read timeouts in the SDK. This is currently available on an opt-in basis by setting env `AWS_ENABLE_DEFAULT_SOCKET_TIMEOUT_2026=true`.
-* **Dependency Update**: Updated to the latest SDK module versions
-
 # v1.18.40 (2026-08-26)
 
 * **Dependency Update**: Update to smithy-go v1.28.0.

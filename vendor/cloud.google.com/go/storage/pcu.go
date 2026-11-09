@@ -30,7 +30,7 @@ import (
 
 const (
 	defaultPartSize      = 16 * 1024 * 1024 // 16 MiB
-	minPartSize          = 8 * 1024 * 1024  // 8 MiB
+	minPartSize          = 5 * 1024 * 1024  // 5 MiB
 	baseWorkers          = 4
 	maxWorkers           = 16
 	tmpObjectPrefix      = "gcs-go-sdk-pu-tmp/"
@@ -47,12 +47,14 @@ const (
 //
 // **Note:** This feature is currently experimental and its API surface may change
 // in future releases. It is not yet recommended for production use.
+//
+// TODO(b/521239530): Add option to delete source parts after compose operation and remove cleanup logic.
 type ParallelUploadConfig struct {
 
-	// PartSize is the requested size of each part to be uploaded in parallel.
-	// The server may determine an actual part size closer to the requested one.
-	// Defaults to 16MiB. If a value less than 8MiB is provided, it will be
-	// automatically increased to 8MiB.
+	// PartSize is the size of each part to be uploaded in parallel.
+	// Defaults to 16MiB. If a value less than 5MiB is provided, it will be
+	// automatically increased to 5MiB. The value is automatically rounded up
+	// to the nearest multiple of 256KiB.
 	PartSize int
 
 	// MaxConcurrency is the number of goroutines to use for uploading parts in parallel.
@@ -116,14 +118,13 @@ type pcuState struct {
 	bytesBuffered   int64
 	buffersAlloc    int
 
-	bufferCh              chan []byte
-	uploadCh              chan uploadTask
-	resultCh              chan uploadResult
-	workerWG              sync.WaitGroup
-	collectorWG           sync.WaitGroup
-	started               bool
-	closeOnce             sync.Once
-	finalComposeSucceeded bool
+	bufferCh    chan []byte
+	uploadCh    chan uploadTask
+	resultCh    chan uploadResult
+	workerWG    sync.WaitGroup
+	collectorWG sync.WaitGroup
+	started     bool
+	closeOnce   sync.Once
 
 	// Function to upload a part; can be overridden for testing.
 	uploadPartFn func(s *pcuState, task uploadTask) (*ObjectHandle, *ObjectAttrs, error)
@@ -441,19 +442,9 @@ func (s *pcuState) close() error {
 		close(s.resultCh)
 		s.collectorWG.Wait()
 
-		// Manual cleanup is attempted unless the final compose succeeded. On success,
-		// the compose operations delete the source parts automatically (via
-		// DeleteSourceObjects = true). The check must not depend on firstErr, since
-		// setError ignores context.Canceled and a cancelled upload would otherwise
-		// leak its temporary parts. doCleanup uses a context detached from
-		// cancellation. We do it in the background to not block returning.
+		// Cleanup is always attempted. We do it in the background to not block returning.
 		defer func() {
-			s.mu.Lock()
-			finalSucceeded := s.finalComposeSucceeded
-			s.mu.Unlock()
-			if !finalSucceeded {
-				go s.doCleanupFn(s)
-			}
+			go s.doCleanupFn(s)
 		}()
 
 		s.mu.Lock()
@@ -534,7 +525,6 @@ func (s *pcuState) composeParts() error {
 
 				interHandle := s.w.o.c.Bucket(s.w.o.bucket).Object(compName)
 				composer := interHandle.ComposerFrom(finalComps[start:end]...)
-				composer.DeleteSourceObjects = true
 
 				_, err := s.composeFn(s.ctx, composer)
 				if err != nil {
@@ -565,16 +555,11 @@ func (s *pcuState) composeParts() error {
 	composer.ObjectAttrs = s.w.ObjectAttrs
 	composer.KMSKeyName = s.w.ObjectAttrs.KMSKeyName
 	composer.SendCRC32C = s.w.SendCRC32C
-	composer.DeleteSourceObjects = true
 
 	attrs, err := s.composeFn(s.ctx, composer)
 	if err != nil {
 		return err
 	}
-
-	s.mu.Lock()
-	s.finalComposeSucceeded = true
-	s.mu.Unlock()
 
 	// Perform client-side CRC32C validation if a user-provided checksum was specified.
 	if s.w.SendCRC32C && s.w.CRC32C != 0 && attrs.CRC32C != s.w.CRC32C {
@@ -605,10 +590,8 @@ func (s *pcuState) doCleanup() {
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(s.ctx), 5*time.Minute)
 		defer cancel()
 		// Only log cleanup errors here since its best effort and will rely on bucket
-		// lifecycle policies if cleanup fails. Objects that no longer exist were
-		// already removed by a successful compose with DeleteSourceObjects, so
-		// they are not reported.
-		if err := s.deleteFn(cleanupCtx, h); err != nil && !errors.Is(err, ErrObjectNotExist) {
+		// lifecycle policies if cleanup fails.
+		if err := s.deleteFn(cleanupCtx, h); err != nil {
 			log.Printf("storage: failed to delete temporary part %q during parallel upload cleanup: %v", h.object, err)
 		}
 	}

@@ -67,7 +67,6 @@ type writer struct {
 	trackcount        int
 	caps              map[int]int
 	quickCaptureSlots []bool
-	ecma              bool
 }
 
 type dispatchInfo struct {
@@ -116,7 +115,6 @@ func (w *writer) codeFromTree(tree *RegexTree) (*Code, error) {
 		curChild int
 		capsize  int
 	)
-	w.ecma = tree.Options&ECMAScript != 0
 	// construct sparse capnum mapping if some numbers are unused
 
 	if tree.Capnumlist == nil || tree.Captop == len(tree.Capnumlist) {
@@ -211,7 +209,7 @@ func (w *writer) codeFromTree(tree *RegexTree) (*Code, error) {
 		TrackCount:        w.trackcount,
 		Caps:              w.caps,
 		Capsize:           capsize,
-		CaptureSlotInUse:  captureSlotsInUse(tree.Root, capsize, w.caps),
+		CaptureSlotInUse:  captureSlotsInUse(w.emitted, capsize),
 		FcPrefix:          fcPrefix,
 		BmPrefix:          bmPrefix,
 		Anchors:           getAnchors(tree),
@@ -275,13 +273,6 @@ func (w *writer) emitFragment(nodetype NodeType, node *RegexNode, curIndex int) 
 
 	switch nodetype {
 	case NtConcatenate | BeforeChild, NtConcatenate | AfterChild, NtEmpty:
-
-	case NtResetCapture:
-		slot := w.mapCapnum(node.M)
-		if w.quickCaptureSlots != nil && !w.quickCaptureSlots[slot] {
-			break
-		}
-		w.emit1(ResetCapture, slot)
 
 	case NtAlternate | BeforeChild:
 		if sets, leaders, _, ok := w.getDispatchCandidates(node); ok {
@@ -378,10 +369,7 @@ func (w *writer) emitFragment(nodetype NodeType, node *RegexNode, curIndex int) 
 
 	case NtLoop | BeforeChild, NtLazyloop | BeforeChild:
 
-		// Counted loops distinguish required iterations from optional ones
-		// for RepeatMatcher's empty-iteration rejection (ECMAScript 2025
-		// §22.2.2.3.1, step 2.2), even when the upper bound is unbounded.
-		if node.N < math.MaxInt32 || node.M > 1 || w.ecma {
+		if node.N < math.MaxInt32 || node.M > 1 {
 			if node.M == 0 {
 				w.emit1(Nullcount, 0)
 			} else {
@@ -404,7 +392,7 @@ func (w *writer) emitFragment(nodetype NodeType, node *RegexNode, curIndex int) 
 		startJumpPos := w.curPos()
 		lazy := InstOp(nodetype - (NtLoop | AfterChild))
 
-		if node.N < math.MaxInt32 || node.M > 1 || w.ecma {
+		if node.N < math.MaxInt32 || node.M > 1 {
 			if node.N == math.MaxInt32 {
 				w.emit2(Branchcount+lazy, w.popInt(), math.MaxInt32)
 			} else {

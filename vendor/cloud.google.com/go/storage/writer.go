@@ -161,9 +161,11 @@ type Writer struct {
 	// when Writer.Close() is called; otherwise, the object is left unfinalized
 	// and can be appended to later.
 	//
-	// Defaults to false unless the [WithAppendableUploads] option was set.
+	// Defaults to false unless the experiemental WithZonalBucketAPIs option was
+	// set.
 	//
-	// Append is only supported for gRPC.
+	// Append is only supported for gRPC. This feature is in preview and is not
+	// yet available for general use.
 	Append bool
 
 	// FinalizeOnClose indicates whether the Writer should finalize an object when
@@ -173,6 +175,8 @@ type Writer struct {
 	// finalized, which means they can be appended to later. If Append is set
 	// to false, this parameter will be ignored; non-appendable objects will
 	// always be finalized when Writer.Close returns without error.
+	//
+	// This feature is in preview and is not yet available for general use.
 	FinalizeOnClose bool
 
 	// ProgressFunc can be used to monitor the progress of a large write
@@ -184,7 +188,7 @@ type Writer struct {
 	//
 	// For parallel uploads, progress is reported when each part is successfully uploaded.
 	// Therefore, the progress may be delayed relative to the standard upload,
-	// and jump in increments of the part size used (e.g. 16MiB).
+	// and jump in increments of PartSize (e.g. 16MiB).
 	//
 	// ProgressFunc should return quickly without blocking.
 	ProgressFunc func(int64)
@@ -270,11 +274,7 @@ func (w *Writer) wrapWriteError(n int, err error) (int, error) {
 }
 
 func (w *Writer) isGRPCClient() bool {
-	tc := w.o.c.tc
-	if mc, ok := tc.(*metricsStorageClient); ok {
-		tc = mc.storageClient
-	}
-	_, ok := tc.(*grpcStorageClient)
+	_, ok := w.o.c.tc.(*grpcStorageClient)
 	return ok
 }
 
@@ -368,7 +368,7 @@ func (w *Writer) Write(p []byte) (int, error) {
 // automatic content sniffing in the Writer.
 //
 // Flush is supported only on gRPC clients where [Writer.Append] is set
-// to true.
+// to true. This feature is in preview and is not yet available for general use.
 func (w *Writer) Flush() (int64, error) {
 	// Return error if Append is not true.
 	if !w.Append {
@@ -436,13 +436,6 @@ func (w *Writer) Close() error {
 	return w.markClosed(nil)
 }
 
-// Abort is unimplemented and always returns an error.
-//
-// This is experimental and its signature can change in the future.
-func (w *Writer) Abort() error {
-	return errMethodNotSupported
-}
-
 // markClosed marks the Writer as closed, records any closing error on Writer.err,
 // and records request body size metrics and trace span completion.
 func (w *Writer) markClosed(err error) error {
@@ -457,7 +450,7 @@ func (w *Writer) markClosed(err error) error {
 
 	if state := metricsStateFromContext(w.ctx); state != nil {
 		if state.metrics != nil && total > 0 {
-			state.metrics.requestBodySize.Record(w.ctx, total, metric.WithAttributes(attribute.String("rpc.system.name", state.getSystemName()), attribute.String("rpc.method", "WriteObject"), attribute.String("server.address", stripPort(state.getTarget()))))
+			state.metrics.requestBodySize.Record(w.ctx, total, metric.WithAttributes(attribute.String("rpc.method", "WriteObject")))
 		}
 		if state.record != nil {
 			state.record(closingErr)

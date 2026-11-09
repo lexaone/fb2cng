@@ -1209,8 +1209,6 @@ func (m *HttpConnectionManager) validate(all bool) error {
 		}
 	}
 
-	// no validation rules for RecordRouteResolutionStats
-
 	oneofRouteSpecifierPresent := false
 	switch v := m.RouteSpecifier.(type) {
 	case *HttpConnectionManager_Rds:
@@ -3660,8 +3658,6 @@ func (m *HttpConnectionManager_SetCurrentClientCertDetails) validate(all bool) e
 	// no validation rules for Dns
 
 	// no validation rules for Uri
-
-	// no validation rules for Issuer
 
 	// no validation rules for Format
 

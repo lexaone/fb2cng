@@ -55,7 +55,7 @@ func ExpandTabs(str string, tabSize int) string {
 			}
 
 			if output != nil {
-				output.WriteString(str[:size])
+				output.WriteRune(r)
 			}
 		}
 
@@ -152,6 +152,7 @@ func Center(str string, length int, pad string) string {
 }
 
 func writePadString(output *stringBuilder, pad string, padLen, remains int) {
+	var r rune
 	var size int
 
 	repeats := remains / padLen
@@ -164,8 +165,8 @@ func writePadString(output *stringBuilder, pad string, padLen, remains int) {
 
 	if remains != 0 {
 		for i := 0; i < remains; i++ {
-			_, size = utf8.DecodeRuneInString(pad)
-			output.WriteString(pad[:size])
+			r, size = utf8.DecodeRuneInString(pad)
+			output.WriteRune(r)
 			pad = pad[size:]
 		}
 	}

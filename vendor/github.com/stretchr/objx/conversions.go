@@ -42,7 +42,7 @@ func SetURLValuesSliceKeySuffix(s string) error {
 		return nil
 	}
 
-	return errors.New("objx: invalid URLValuesSliceKeySuffix provided")
+	return errors.New("objx: Invalid URLValuesSliceKeySuffix provided.")
 }
 
 // JSON converts the contained object to a JSON string
@@ -59,21 +59,15 @@ func (m Map) JSON() (string, error) {
 	return string(result), err
 }
 
-func cleanUpInterfaceArray(in []any) []any {
-	if in == nil {
-		return nil
-	}
-	result := make([]any, len(in))
+func cleanUpInterfaceArray(in []interface{}) []interface{} {
+	result := make([]interface{}, len(in))
 	for i, v := range in {
 		result[i] = cleanUp(v)
 	}
 	return result
 }
 
-func cleanUpInterfaceMap(in map[any]any) Map {
-	if in == nil {
-		return nil
-	}
+func cleanUpInterfaceMap(in map[interface{}]interface{}) Map {
 	result := Map{}
 	for k, v := range in {
 		result[fmt.Sprintf("%v", k)] = cleanUp(v)
@@ -81,10 +75,7 @@ func cleanUpInterfaceMap(in map[any]any) Map {
 	return result
 }
 
-func cleanUpStringMap(in map[string]any) Map {
-	if in == nil {
-		return nil
-	}
+func cleanUpStringMap(in map[string]interface{}) Map {
 	result := Map{}
 	for k, v := range in {
 		result[k] = cleanUp(v)
@@ -92,10 +83,7 @@ func cleanUpStringMap(in map[string]any) Map {
 	return result
 }
 
-func cleanUpMSIArray(in []map[string]any) []Map {
-	if in == nil {
-		return nil
-	}
+func cleanUpMSIArray(in []map[string]interface{}) []Map {
 	result := make([]Map, len(in))
 	for i, v := range in {
 		result[i] = cleanUpStringMap(v)
@@ -104,9 +92,6 @@ func cleanUpMSIArray(in []map[string]any) []Map {
 }
 
 func cleanUpMapArray(in []Map) []Map {
-	if in == nil {
-		return nil
-	}
 	result := make([]Map, len(in))
 	for i, v := range in {
 		result[i] = cleanUpStringMap(v)
@@ -114,13 +99,13 @@ func cleanUpMapArray(in []Map) []Map {
 	return result
 }
 
-func cleanUp(v any) any {
+func cleanUp(v interface{}) interface{} {
 	switch v := v.(type) {
-	case []any:
+	case []interface{}:
 		return cleanUpInterfaceArray(v)
-	case []map[string]any:
+	case []map[string]interface{}:
 		return cleanUpMSIArray(v)
-	case map[any]any:
+	case map[interface{}]interface{}:
 		return cleanUpInterfaceMap(v)
 	case Map:
 		return cleanUpStringMap(v)
@@ -199,11 +184,7 @@ func (m Map) MustSignedBase64(key string) string {
 */
 
 // URLValues creates a url.Values object from an Obj. This
-// function requires that the wrapped object be a map[string]any
-//
-// Only the URLValuesSliceKeySuffixIndex suffix keeps slices of maps
-// decodable: with the other suffixes every element shares the same keys,
-// so which values belong to which element is lost.
+// function requires that the wrapped object be a map[string]interface{}
 func (m Map) URLValues() url.Values {
 	vals := make(url.Values)
 
@@ -213,58 +194,87 @@ func (m Map) URLValues() url.Values {
 }
 
 func (m Map) parseURLValues(queryMap Map, vals url.Values, key string) {
-	for k, v := range queryMap {
-		fullKey := k
-		if key != "" {
-			fullKey = key + "[" + k + "]"
-		}
-		m.parseURLValue(v, vals, fullKey)
+	useSliceIndex := false
+	if urlValuesSliceKeySuffix == "[i]" {
+		useSliceIndex = true
 	}
-}
 
-// parseURLValue always adds values rather than setting them: without an
-// index suffix, every element of a slice shares the same key, and setting
-// would keep only the last element's values.
-func (m Map) parseURLValue(v any, vals url.Values, key string) {
-	val := &Value{data: v}
-	switch {
-	case val.IsObjxMap():
-		m.parseURLValues(val.ObjxMap(), vals, key)
-	case val.IsObjxMapSlice():
-		for i, sv := range val.MustObjxMapSlice() {
-			m.parseURLValues(sv, vals, urlValuesSliceElemKey(key, i))
-		}
-	case val.IsStrSlice(), val.IsBoolSlice(),
-		val.IsFloat32Slice(), val.IsFloat64Slice(),
-		val.IsIntSlice(), val.IsInt8Slice(), val.IsInt16Slice(), val.IsInt32Slice(), val.IsInt64Slice(),
-		val.IsUintSlice(), val.IsUint8Slice(), val.IsUint16Slice(), val.IsUint32Slice(), val.IsUint64Slice():
-		for i, sv := range val.StringSlice() {
-			vals.Add(urlValuesSliceElemKey(key, i), sv)
-		}
-	case val.IsInterSlice():
-		// Mixed slices, such as JSON arrays, are encoded element by element.
-		for i, sv := range val.MustInterSlice() {
-			if sv != nil {
-				m.parseURLValue(sv, vals, urlValuesSliceElemKey(key, i))
+	for k, v := range queryMap {
+		val := &Value{data: v}
+		switch {
+		case val.IsObjxMap():
+			if key == "" {
+				m.parseURLValues(val.ObjxMap(), vals, k)
+			} else {
+				m.parseURLValues(val.ObjxMap(), vals, key+"["+k+"]")
+			}
+		case val.IsObjxMapSlice():
+			sliceKey := k
+			if key != "" {
+				sliceKey = key + "[" + k + "]"
+			}
+
+			if useSliceIndex {
+				for i, sv := range val.MustObjxMapSlice() {
+					sk := sliceKey + "[" + strconv.FormatInt(int64(i), 10) + "]"
+					m.parseURLValues(sv, vals, sk)
+				}
+			} else {
+				sliceKey = sliceKey + urlValuesSliceKeySuffix
+				for _, sv := range val.MustObjxMapSlice() {
+					m.parseURLValues(sv, vals, sliceKey)
+				}
+			}
+		case val.IsMSISlice():
+			sliceKey := k
+			if key != "" {
+				sliceKey = key + "[" + k + "]"
+			}
+
+			if useSliceIndex {
+				for i, sv := range val.MustMSISlice() {
+					sk := sliceKey + "[" + strconv.FormatInt(int64(i), 10) + "]"
+					m.parseURLValues(New(sv), vals, sk)
+				}
+			} else {
+				sliceKey = sliceKey + urlValuesSliceKeySuffix
+				for _, sv := range val.MustMSISlice() {
+					m.parseURLValues(New(sv), vals, sliceKey)
+				}
+			}
+		case val.IsStrSlice(), val.IsBoolSlice(),
+			val.IsFloat32Slice(), val.IsFloat64Slice(),
+			val.IsIntSlice(), val.IsInt8Slice(), val.IsInt16Slice(), val.IsInt32Slice(), val.IsInt64Slice(),
+			val.IsUintSlice(), val.IsUint8Slice(), val.IsUint16Slice(), val.IsUint32Slice(), val.IsUint64Slice():
+
+			sliceKey := k
+			if key != "" {
+				sliceKey = key + "[" + k + "]"
+			}
+
+			if useSliceIndex {
+				for i, sv := range val.StringSlice() {
+					sk := sliceKey + "[" + strconv.FormatInt(int64(i), 10) + "]"
+					vals.Set(sk, sv)
+				}
+			} else {
+				sliceKey = sliceKey + urlValuesSliceKeySuffix
+				vals[sliceKey] = val.StringSlice()
+			}
+
+		default:
+			if key == "" {
+				vals.Set(k, val.String())
+			} else {
+				vals.Set(key+"["+k+"]", val.String())
 			}
 		}
-	default:
-		vals.Add(key, val.String())
 	}
-}
-
-// urlValuesSliceElemKey returns the key for the i-th element of the slice
-// stored under key, according to the configured slice key suffix.
-func urlValuesSliceElemKey(key string, i int) string {
-	if urlValuesSliceKeySuffix == URLValuesSliceKeySuffixIndex {
-		return key + "[" + strconv.Itoa(i) + "]"
-	}
-	return key + urlValuesSliceKeySuffix
 }
 
 // URLQuery gets an encoded URL query representing the given
 // Obj. This function requires that the wrapped object be a
-// map[string]any
+// map[string]interface{}
 func (m Map) URLQuery() (string, error) {
 	return m.URLValues().Encode(), nil
 }

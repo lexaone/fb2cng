@@ -17,18 +17,9 @@
 package storage
 
 import (
-	"iter"
-
 	storagepb "cloud.google.com/go/storage/internal/apiv2/storagepb"
-	gaxiter "github.com/googleapis/gax-go/v2/iterator"
 	"google.golang.org/api/iterator"
 )
-
-// All returns an iterator. If an error is returned by the iterator, the
-// iterator will stop after that iteration.
-func (it *BucketIterator) All() iter.Seq2[*storagepb.Bucket, error] {
-	return gaxiter.RangeAdapter(it.Next)
-}
 
 // BucketIterator manages a stream of *storagepb.Bucket.
 type BucketIterator struct {
@@ -75,12 +66,6 @@ func (it *BucketIterator) takeBuf() interface{} {
 	b := it.items
 	it.items = nil
 	return b
-}
-
-// All returns an iterator. If an error is returned by the iterator, the
-// iterator will stop after that iteration.
-func (it *ObjectIterator) All() iter.Seq2[*storagepb.Object, error] {
-	return gaxiter.RangeAdapter(it.Next)
 }
 
 // ObjectIterator manages a stream of *storagepb.Object.

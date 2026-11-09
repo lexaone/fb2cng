@@ -78,12 +78,12 @@ func (m *validateOutputPayloadChecksum) HandleDeserialize(
 		}
 	}
 
-	// Validation is gated on the presence of a supported, non-composite checksum
-	// header (the "no checksum" branch below). Responses without one — error
-	// responses (4xx/5xx) and arbitrary Range GETs — are not validated.
-	// Successful partial-content responses (206) from partNumber or whole-object
-	// Range GETs do carry a validatable checksum covering exactly the returned
-	// bytes, and are validated.
+	// this runs BEFORE the deserializer, so we have to preemptively check for
+	// non-200, in which case there is no checksum to validate
+	if response.StatusCode != 200 {
+		return out, metadata, err
+	}
+
 	var expectedChecksum string
 	var algorithmToUse Algorithm
 	for _, algorithm := range m.Algorithms {
@@ -100,13 +100,10 @@ func (m *validateOutputPayloadChecksum) HandleDeserialize(
 
 	// Skip validation if no checksum algorithm or checksum is available.
 	if len(expectedChecksum) == 0 || len(algorithmToUse) == 0 {
-		// Only log for successful responses. Error responses (4xx/5xx) carry an
-		// error document rather than an object payload and legitimately have no
-		// checksum, so logging there is just noise.
-		if response.StatusCode < 400 && response.Body != http.NoBody && m.LogValidationSkipped {
+		if response.Body != http.NoBody && m.LogValidationSkipped {
 			// TODO this probably should have more information about the
 			// operation output that won't be validated.
-			logger.Logf(logging.Debug,
+			logger.Logf(logging.Warn,
 				"Response has no supported checksum. Not validating response payload.")
 		}
 		return out, metadata, nil

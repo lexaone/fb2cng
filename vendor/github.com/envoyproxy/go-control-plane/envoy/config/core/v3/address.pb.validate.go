@@ -1038,8 +1038,6 @@ func (m *BindConfig) validate(all bool) error {
 		}
 	}
 
-	// no validation rules for ValidateNetworkNamespaces
-
 	if len(errors) > 0 {
 		return BindConfigMultiError(errors)
 	}

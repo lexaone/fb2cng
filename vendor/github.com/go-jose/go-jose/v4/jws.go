@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"unicode"
 
 	"github.com/go-jose/go-jose/v4/json"
 )
@@ -90,12 +89,12 @@ func ParseSigned(
 	signature string,
 	signatureAlgorithms []SignatureAlgorithm,
 ) (*JSONWebSignature, error) {
-	trimmed := strings.TrimLeftFunc(signature, unicode.IsSpace)
-	if strings.HasPrefix(trimmed, "{") {
+	signature = stripWhitespace(signature)
+	if strings.HasPrefix(signature, "{") {
 		return ParseSignedJSON(signature, signatureAlgorithms)
 	}
 
-	return parseSignedCompact(stripWhitespace(signature), nil, signatureAlgorithms)
+	return parseSignedCompact(signature, nil, signatureAlgorithms)
 }
 
 // ParseSignedCompact parses a message in JWS Compact Serialization. Validation fails if the JWS is
@@ -187,10 +186,6 @@ func ParseSignedJSON(
 	input string,
 	signatureAlgorithms []SignatureAlgorithm,
 ) (*JSONWebSignature, error) {
-	if len(input) == 0 {
-		return nil, errEmptyInput
-	}
-
 	var parsed rawJSONWebSignature
 	err := json.Unmarshal([]byte(input), &parsed)
 	if err != nil {
@@ -275,16 +270,15 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 			Signature: parsed.Signature,
 		}
 
-		mergedHeaders := signature.mergedHeaders()
-		alg := mergedHeaders.getSignatureAlgorithm()
-		if !containsSignatureAlgorithm(signatureAlgorithms, alg) {
-			return nil, newErrUnexpectedSignatureAlgorithm(alg, signatureAlgorithms)
-		}
-
 		var err error
-		signature.Header, err = mergedHeaders.sanitized()
+		signature.Header, err = signature.mergedHeaders().sanitized()
 		if err != nil {
 			return nil, err
+		}
+
+		alg := SignatureAlgorithm(signature.Header.Algorithm)
+		if !containsSignatureAlgorithm(signatureAlgorithms, alg) {
+			return nil, newErrUnexpectedSignatureAlgorithm(alg, signatureAlgorithms)
 		}
 
 		if signature.header != nil {
@@ -324,18 +318,15 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 			return nil, ErrUnprotectedNonce
 		}
 
-		obj.Signatures[i].header = sig.Header
-
-		mergedHeaders := obj.Signatures[i].mergedHeaders()
-		alg := mergedHeaders.getSignatureAlgorithm()
-		if !containsSignatureAlgorithm(signatureAlgorithms, alg) {
-			return nil, newErrUnexpectedSignatureAlgorithm(alg, signatureAlgorithms)
-		}
-
 		var err error
-		obj.Signatures[i].Header, err = mergedHeaders.sanitized()
+		obj.Signatures[i].Header, err = obj.Signatures[i].mergedHeaders().sanitized()
 		if err != nil {
 			return nil, err
+		}
+
+		alg := SignatureAlgorithm(obj.Signatures[i].Header.Algorithm)
+		if !containsSignatureAlgorithm(signatureAlgorithms, alg) {
+			return nil, newErrUnexpectedSignatureAlgorithm(alg, signatureAlgorithms)
 		}
 
 		if obj.Signatures[i].header != nil {
@@ -363,6 +354,7 @@ func (parsed *rawJSONWebSignature) sanitized(signatureAlgorithms []SignatureAlgo
 		// Copy value of sig
 		original := sig
 
+		obj.Signatures[i].header = sig.Header
 		obj.Signatures[i].original = &original
 	}
 
@@ -377,10 +369,6 @@ func parseSignedCompact(
 	payload []byte,
 	signatureAlgorithms []SignatureAlgorithm,
 ) (*JSONWebSignature, error) {
-	if len(input) == 0 {
-		return nil, errEmptyInput
-	}
-
 	protected, s, ok := strings.Cut(input, tokenDelim)
 	if !ok { // no period found
 		return nil, fmt.Errorf("go-jose/go-jose: compact JWS format must have three parts")

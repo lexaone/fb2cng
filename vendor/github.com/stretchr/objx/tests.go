@@ -1,15 +1,14 @@
 package objx
 
-// Has reports whether the specified selector exists, even when the
-// value at the selector is nil.
+// Has gets whether there is something at the specified selector
+// or not.
 //
 // If m is nil, Has will always return false.
 func (m Map) Has(selector string) bool {
 	if m == nil {
 		return false
 	}
-	_, ok := access(m, selector, nil, actionGet)
-	return ok
+	return !m.Get(selector).IsNil()
 }
 
 // IsNil gets whether the data is nil or not.

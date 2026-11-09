@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"math/bits"
 	"strings"
-
-	"github.com/klauspost/compress/internal/regmask"
 )
 
 func peekBufio(fr *bufio.Reader) ([]byte, error) {
@@ -64,7 +62,7 @@ readLiteral:
 						return
 					}
 					f.roffset++
-					fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+					fb |= uint32(c) << (fnb & regSizeMaskUint32)
 					fnb += 8
 				}
 				chunk := f.hl.chunks[fb&(huffmanNumChunks-1)]
@@ -82,7 +80,7 @@ readLiteral:
 						f.err = CorruptInputError(f.roffset)
 						return
 					}
-					fb = fb >> (n & regmask.Shift32ByUint)
+					fb = fb >> (n & regSizeMaskUint32)
 					fnb = fnb - n
 					v = int(chunk >> huffmanValueShift)
 					break
@@ -120,15 +118,15 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits n>0:", err)
 					}
-					f.err = noEOF(err)
+					f.err = err
 					return
 				}
 				f.roffset++
-				fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+				fb |= uint32(c) << (fnb & regSizeMaskUint32)
 				fnb += 8
 			}
 			length += int(fb & bitMask32[n])
-			fb >>= n & regmask.Shift32ByUint
+			fb >>= n & regSizeMaskUint32
 			fnb -= n
 		default:
 			if debugDecode {
@@ -148,11 +146,11 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits f.nb<5:", err)
 					}
-					f.err = noEOF(err)
+					f.err = err
 					return
 				}
 				f.roffset++
-				fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+				fb |= uint32(c) << (fnb & regSizeMaskUint32)
 				fnb += 8
 			}
 			dist = uint32(bits.Reverse8(uint8(fb & 0x1F << 3)))
@@ -176,7 +174,7 @@ readLiteral:
 						return
 					}
 					f.roffset++
-					fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+					fb |= uint32(c) << (fnb & regSizeMaskUint32)
 					fnb += 8
 				}
 				chunk := f.hd.chunks[fb&(huffmanNumChunks-1)]
@@ -194,7 +192,7 @@ readLiteral:
 						f.err = CorruptInputError(f.roffset)
 						return
 					}
-					fb = fb >> (n & regmask.Shift32ByUint)
+					fb = fb >> (n & regSizeMaskUint32)
 					fnb = fnb - n
 					dist = uint32(chunk >> huffmanValueShift)
 					break
@@ -208,7 +206,7 @@ readLiteral:
 		case dist < maxNumDist:
 			nb := uint(dist-2) >> 1
 			// have 1 bit in bottom of dist, need nb more.
-			extra := (dist & 1) << (nb & regmask.Shift32ByUint)
+			extra := (dist & 1) << (nb & regSizeMaskUint32)
 			for fnb < nb {
 				c, err := fr.ReadByte()
 				if err != nil {
@@ -216,17 +214,17 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits f.nb<nb:", err)
 					}
-					f.err = noEOF(err)
+					f.err = err
 					return
 				}
 				f.roffset++
-				fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+				fb |= uint32(c) << (fnb & regSizeMaskUint32)
 				fnb += 8
 			}
 			extra |= fb & bitMask32[nb]
-			fb >>= nb & regmask.Shift32ByUint
+			fb >>= nb & regSizeMaskUint32
 			fnb -= nb
-			dist = 1<<((nb+1)&regmask.Shift32ByUint) + 1 + extra
+			dist = 1<<((nb+1)&regSizeMaskUint32) + 1 + extra
 			// slower: dist = bitMask32[nb+1] + 2 + extra
 		default:
 			f.b, f.nb = fb, fnb
@@ -315,7 +313,7 @@ readLiteral:
 						return
 					}
 					f.roffset++
-					fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+					fb |= uint32(c) << (fnb & regSizeMaskUint32)
 					fnb += 8
 				}
 				chunk := f.hl.chunks[fb&(huffmanNumChunks-1)]
@@ -333,7 +331,7 @@ readLiteral:
 						f.err = CorruptInputError(f.roffset)
 						return
 					}
-					fb = fb >> (n & regmask.Shift32ByUint)
+					fb = fb >> (n & regSizeMaskUint32)
 					fnb = fnb - n
 					v = int(chunk >> huffmanValueShift)
 					break
@@ -371,15 +369,15 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits n>0:", err)
 					}
-					f.err = noEOF(err)
+					f.err = err
 					return
 				}
 				f.roffset++
-				fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+				fb |= uint32(c) << (fnb & regSizeMaskUint32)
 				fnb += 8
 			}
 			length += int(fb & bitMask32[n])
-			fb >>= n & regmask.Shift32ByUint
+			fb >>= n & regSizeMaskUint32
 			fnb -= n
 		default:
 			if debugDecode {
@@ -399,11 +397,11 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits f.nb<5:", err)
 					}
-					f.err = noEOF(err)
+					f.err = err
 					return
 				}
 				f.roffset++
-				fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+				fb |= uint32(c) << (fnb & regSizeMaskUint32)
 				fnb += 8
 			}
 			dist = uint32(bits.Reverse8(uint8(fb & 0x1F << 3)))
@@ -427,7 +425,7 @@ readLiteral:
 						return
 					}
 					f.roffset++
-					fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+					fb |= uint32(c) << (fnb & regSizeMaskUint32)
 					fnb += 8
 				}
 				chunk := f.hd.chunks[fb&(huffmanNumChunks-1)]
@@ -445,7 +443,7 @@ readLiteral:
 						f.err = CorruptInputError(f.roffset)
 						return
 					}
-					fb = fb >> (n & regmask.Shift32ByUint)
+					fb = fb >> (n & regSizeMaskUint32)
 					fnb = fnb - n
 					dist = uint32(chunk >> huffmanValueShift)
 					break
@@ -459,7 +457,7 @@ readLiteral:
 		case dist < maxNumDist:
 			nb := uint(dist-2) >> 1
 			// have 1 bit in bottom of dist, need nb more.
-			extra := (dist & 1) << (nb & regmask.Shift32ByUint)
+			extra := (dist & 1) << (nb & regSizeMaskUint32)
 			for fnb < nb {
 				c, err := fr.ReadByte()
 				if err != nil {
@@ -467,17 +465,17 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits f.nb<nb:", err)
 					}
-					f.err = noEOF(err)
+					f.err = err
 					return
 				}
 				f.roffset++
-				fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+				fb |= uint32(c) << (fnb & regSizeMaskUint32)
 				fnb += 8
 			}
 			extra |= fb & bitMask32[nb]
-			fb >>= nb & regmask.Shift32ByUint
+			fb >>= nb & regSizeMaskUint32
 			fnb -= nb
-			dist = 1<<((nb+1)&regmask.Shift32ByUint) + 1 + extra
+			dist = 1<<((nb+1)&regSizeMaskUint32) + 1 + extra
 			// slower: dist = bitMask32[nb+1] + 2 + extra
 		default:
 			f.b, f.nb = fb, fnb
@@ -575,7 +573,7 @@ readLiteral:
 					c := pbuf[pos]
 					pos++
 					f.roffset++
-					fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+					fb |= uint32(c) << (fnb & regSizeMaskUint32)
 					fnb += 8
 				}
 				chunk := f.hl.chunks[fb&(huffmanNumChunks-1)]
@@ -594,7 +592,7 @@ readLiteral:
 						f.err = CorruptInputError(f.roffset)
 						return
 					}
-					fb = fb >> (n & regmask.Shift32ByUint)
+					fb = fb >> (n & regSizeMaskUint32)
 					fnb = fnb - n
 					v = int(chunk >> huffmanValueShift)
 					break
@@ -638,18 +636,18 @@ readLiteral:
 						if debugDecode {
 							fmt.Println("morebits n>0:", err)
 						}
-						f.err = noEOF(err)
+						f.err = err
 						return
 					}
 				}
 				c := pbuf[pos]
 				pos++
 				f.roffset++
-				fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+				fb |= uint32(c) << (fnb & regSizeMaskUint32)
 				fnb += 8
 			}
 			length += int(fb & bitMask32[n])
-			fb >>= n & regmask.Shift32ByUint
+			fb >>= n & regSizeMaskUint32
 			fnb -= n
 		default:
 			fr.Discard(pos)
@@ -674,14 +672,14 @@ readLiteral:
 						if debugDecode {
 							fmt.Println("morebits f.nb<5:", err)
 						}
-						f.err = noEOF(err)
+						f.err = err
 						return
 					}
 				}
 				c := pbuf[pos]
 				pos++
 				f.roffset++
-				fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+				fb |= uint32(c) << (fnb & regSizeMaskUint32)
 				fnb += 8
 			}
 			dist = uint32(bits.Reverse8(uint8(fb & 0x1F << 3)))
@@ -712,7 +710,7 @@ readLiteral:
 					c := pbuf[pos]
 					pos++
 					f.roffset++
-					fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+					fb |= uint32(c) << (fnb & regSizeMaskUint32)
 					fnb += 8
 				}
 				chunk := f.hd.chunks[fb&(huffmanNumChunks-1)]
@@ -731,7 +729,7 @@ readLiteral:
 						f.err = CorruptInputError(f.roffset)
 						return
 					}
-					fb = fb >> (n & regmask.Shift32ByUint)
+					fb = fb >> (n & regSizeMaskUint32)
 					fnb = fnb - n
 					dist = uint32(chunk >> huffmanValueShift)
 					break
@@ -745,7 +743,7 @@ readLiteral:
 		case dist < maxNumDist:
 			nb := uint(dist-2) >> 1
 			// have 1 bit in bottom of dist, need nb more.
-			extra := (dist & 1) << (nb & regmask.Shift32ByUint)
+			extra := (dist & 1) << (nb & regSizeMaskUint32)
 			for fnb < nb {
 				if pos >= len(pbuf) {
 					fr.Discard(pos)
@@ -757,20 +755,20 @@ readLiteral:
 						if debugDecode {
 							fmt.Println("morebits f.nb<nb:", err)
 						}
-						f.err = noEOF(err)
+						f.err = err
 						return
 					}
 				}
 				c := pbuf[pos]
 				pos++
 				f.roffset++
-				fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+				fb |= uint32(c) << (fnb & regSizeMaskUint32)
 				fnb += 8
 			}
 			extra |= fb & bitMask32[nb]
-			fb >>= nb & regmask.Shift32ByUint
+			fb >>= nb & regSizeMaskUint32
 			fnb -= nb
-			dist = 1<<((nb+1)&regmask.Shift32ByUint) + 1 + extra
+			dist = 1<<((nb+1)&regSizeMaskUint32) + 1 + extra
 			// slower: dist = bitMask32[nb+1] + 2 + extra
 		default:
 			fr.Discard(pos)
@@ -862,7 +860,7 @@ readLiteral:
 						return
 					}
 					f.roffset++
-					fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+					fb |= uint32(c) << (fnb & regSizeMaskUint32)
 					fnb += 8
 				}
 				chunk := f.hl.chunks[fb&(huffmanNumChunks-1)]
@@ -880,7 +878,7 @@ readLiteral:
 						f.err = CorruptInputError(f.roffset)
 						return
 					}
-					fb = fb >> (n & regmask.Shift32ByUint)
+					fb = fb >> (n & regSizeMaskUint32)
 					fnb = fnb - n
 					v = int(chunk >> huffmanValueShift)
 					break
@@ -918,15 +916,15 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits n>0:", err)
 					}
-					f.err = noEOF(err)
+					f.err = err
 					return
 				}
 				f.roffset++
-				fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+				fb |= uint32(c) << (fnb & regSizeMaskUint32)
 				fnb += 8
 			}
 			length += int(fb & bitMask32[n])
-			fb >>= n & regmask.Shift32ByUint
+			fb >>= n & regSizeMaskUint32
 			fnb -= n
 		default:
 			if debugDecode {
@@ -946,11 +944,11 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits f.nb<5:", err)
 					}
-					f.err = noEOF(err)
+					f.err = err
 					return
 				}
 				f.roffset++
-				fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+				fb |= uint32(c) << (fnb & regSizeMaskUint32)
 				fnb += 8
 			}
 			dist = uint32(bits.Reverse8(uint8(fb & 0x1F << 3)))
@@ -974,7 +972,7 @@ readLiteral:
 						return
 					}
 					f.roffset++
-					fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+					fb |= uint32(c) << (fnb & regSizeMaskUint32)
 					fnb += 8
 				}
 				chunk := f.hd.chunks[fb&(huffmanNumChunks-1)]
@@ -992,7 +990,7 @@ readLiteral:
 						f.err = CorruptInputError(f.roffset)
 						return
 					}
-					fb = fb >> (n & regmask.Shift32ByUint)
+					fb = fb >> (n & regSizeMaskUint32)
 					fnb = fnb - n
 					dist = uint32(chunk >> huffmanValueShift)
 					break
@@ -1006,7 +1004,7 @@ readLiteral:
 		case dist < maxNumDist:
 			nb := uint(dist-2) >> 1
 			// have 1 bit in bottom of dist, need nb more.
-			extra := (dist & 1) << (nb & regmask.Shift32ByUint)
+			extra := (dist & 1) << (nb & regSizeMaskUint32)
 			for fnb < nb {
 				c, err := fr.ReadByte()
 				if err != nil {
@@ -1014,17 +1012,17 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits f.nb<nb:", err)
 					}
-					f.err = noEOF(err)
+					f.err = err
 					return
 				}
 				f.roffset++
-				fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+				fb |= uint32(c) << (fnb & regSizeMaskUint32)
 				fnb += 8
 			}
 			extra |= fb & bitMask32[nb]
-			fb >>= nb & regmask.Shift32ByUint
+			fb >>= nb & regSizeMaskUint32
 			fnb -= nb
-			dist = 1<<((nb+1)&regmask.Shift32ByUint) + 1 + extra
+			dist = 1<<((nb+1)&regSizeMaskUint32) + 1 + extra
 			// slower: dist = bitMask32[nb+1] + 2 + extra
 		default:
 			f.b, f.nb = fb, fnb
@@ -1113,7 +1111,7 @@ readLiteral:
 						return
 					}
 					f.roffset++
-					fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+					fb |= uint32(c) << (fnb & regSizeMaskUint32)
 					fnb += 8
 				}
 				chunk := f.hl.chunks[fb&(huffmanNumChunks-1)]
@@ -1131,7 +1129,7 @@ readLiteral:
 						f.err = CorruptInputError(f.roffset)
 						return
 					}
-					fb = fb >> (n & regmask.Shift32ByUint)
+					fb = fb >> (n & regSizeMaskUint32)
 					fnb = fnb - n
 					v = int(chunk >> huffmanValueShift)
 					break
@@ -1169,15 +1167,15 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits n>0:", err)
 					}
-					f.err = noEOF(err)
+					f.err = err
 					return
 				}
 				f.roffset++
-				fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+				fb |= uint32(c) << (fnb & regSizeMaskUint32)
 				fnb += 8
 			}
 			length += int(fb & bitMask32[n])
-			fb >>= n & regmask.Shift32ByUint
+			fb >>= n & regSizeMaskUint32
 			fnb -= n
 		default:
 			if debugDecode {
@@ -1197,11 +1195,11 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits f.nb<5:", err)
 					}
-					f.err = noEOF(err)
+					f.err = err
 					return
 				}
 				f.roffset++
-				fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+				fb |= uint32(c) << (fnb & regSizeMaskUint32)
 				fnb += 8
 			}
 			dist = uint32(bits.Reverse8(uint8(fb & 0x1F << 3)))
@@ -1225,7 +1223,7 @@ readLiteral:
 						return
 					}
 					f.roffset++
-					fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+					fb |= uint32(c) << (fnb & regSizeMaskUint32)
 					fnb += 8
 				}
 				chunk := f.hd.chunks[fb&(huffmanNumChunks-1)]
@@ -1243,7 +1241,7 @@ readLiteral:
 						f.err = CorruptInputError(f.roffset)
 						return
 					}
-					fb = fb >> (n & regmask.Shift32ByUint)
+					fb = fb >> (n & regSizeMaskUint32)
 					fnb = fnb - n
 					dist = uint32(chunk >> huffmanValueShift)
 					break
@@ -1257,7 +1255,7 @@ readLiteral:
 		case dist < maxNumDist:
 			nb := uint(dist-2) >> 1
 			// have 1 bit in bottom of dist, need nb more.
-			extra := (dist & 1) << (nb & regmask.Shift32ByUint)
+			extra := (dist & 1) << (nb & regSizeMaskUint32)
 			for fnb < nb {
 				c, err := fr.ReadByte()
 				if err != nil {
@@ -1265,17 +1263,17 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits f.nb<nb:", err)
 					}
-					f.err = noEOF(err)
+					f.err = err
 					return
 				}
 				f.roffset++
-				fb |= uint32(c) << (fnb & regmask.Shift32ByUint)
+				fb |= uint32(c) << (fnb & regSizeMaskUint32)
 				fnb += 8
 			}
 			extra |= fb & bitMask32[nb]
-			fb >>= nb & regmask.Shift32ByUint
+			fb >>= nb & regSizeMaskUint32
 			fnb -= nb
-			dist = 1<<((nb+1)&regmask.Shift32ByUint) + 1 + extra
+			dist = 1<<((nb+1)&regSizeMaskUint32) + 1 + extra
 			// slower: dist = bitMask32[nb+1] + 2 + extra
 		default:
 			f.b, f.nb = fb, fnb

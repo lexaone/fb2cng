@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -240,6 +241,15 @@ func generateAnnotation(c *content.Content, cfg *config.AnnotationConfig, log *z
 
 	if _, err := appendFlowItems(annotationDiv, c, c.Book.Description.TitleInfo.Annotation.Items, 1, 1, "annotation", log); err != nil {
 		log.Warn("Unable to convert annotation content", zap.Error(err))
+	}
+
+	if cfg.IncludeYear {
+		if year := annotationYear(c.Book.Description.TitleInfo.Date); year != "" {
+			c.KoboSpanNextParagraph()
+			p := annotationBodyDiv.CreateElement("p")
+			p.CreateAttr("class", "annotation-year")
+			appendInlineText(p, c, year, false)
+		}
 	}
 
 	return chapterData{
@@ -1511,4 +1521,20 @@ func addSequenceMetadata(metadata *etree.Element, seq *fb2.Sequence, idCounter i
 	}
 
 	return idCounter
+}
+
+var annotationYearPattern = regexp.MustCompile(`\b[0-9]{4}\b`)
+
+func annotationYear(date *fb2.Date) string {
+	if date == nil {
+		return ""
+	}
+	if !date.Value.IsZero() {
+		return strconv.Itoa(date.Value.Year())
+	}
+	years := annotationYearPattern.FindAllString(date.Display, -1)
+	if len(years) == 1 && years[0] != "0000" {
+		return years[0]
+	}
+	return ""
 }

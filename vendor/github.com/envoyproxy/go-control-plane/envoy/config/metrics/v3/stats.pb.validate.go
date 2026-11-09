@@ -1002,8 +1002,6 @@ func (m *StatsdSink) validate(all bool) error {
 
 	// no validation rules for Prefix
 
-	// no validation rules for ScaleHistogramUnitsToMilliseconds
-
 	oneofStatsdSpecifierPresent := false
 	switch v := m.StatsdSpecifier.(type) {
 	case *StatsdSink_Address:
@@ -1190,8 +1188,6 @@ func (m *DogStatsdSink) validate(all bool) error {
 		}
 
 	}
-
-	// no validation rules for ScaleHistogramUnitsToMilliseconds
 
 	oneofDogStatsdSpecifierPresent := false
 	switch v := m.DogStatsdSpecifier.(type) {

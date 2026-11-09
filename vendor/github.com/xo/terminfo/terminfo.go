@@ -72,8 +72,6 @@ type Terminfo struct {
 	ExtNumNames map[int][]byte
 	// ExtStrings are the extended string capabilities.
 	ExtStrings map[int][]byte
-	// ExtStringsM are the missing extended string capabilities.
-	ExtStringsM map[int]bool
 	// ExtStringsNames is the map of extended string capabilities to their index.
 	ExtStringNames map[int][]byte
 }
@@ -175,7 +173,7 @@ func Decode(buf []byte) (*Terminfo, error) {
 		return nil, err
 	}
 	// read extended string data table indexes
-	extIndexes, err := d.readInts(extOffsetCount(eh), 16)
+	extIndexes, err := d.readInts(eh[fieldExtOffsetCount], 16)
 	if err != nil {
 		return nil, err
 	}
@@ -190,25 +188,25 @@ func Decode(buf []byte) (*Terminfo, error) {
 	}
 	var last int
 	// read extended string caps
-	ti.ExtStrings, ti.ExtStringsM, last, err = readStrings(extIndexes, extData, eh[fieldExtStringCount])
+	ti.ExtStrings, last, err = readStrings(extIndexes, extData, eh[fieldExtStringCount])
 	if err != nil {
 		return nil, err
 	}
 	extIndexes, extData = extIndexes[eh[fieldExtStringCount]:], extData[last:]
 	// read extended bool names
-	ti.ExtBoolNames, _, _, err = readStrings(extIndexes, extData, eh[fieldExtBoolCount])
+	ti.ExtBoolNames, _, err = readStrings(extIndexes, extData, eh[fieldExtBoolCount])
 	if err != nil {
 		return nil, err
 	}
 	extIndexes = extIndexes[eh[fieldExtBoolCount]:]
 	// read extended num names
-	ti.ExtNumNames, _, _, err = readStrings(extIndexes, extData, eh[fieldExtNumCount])
+	ti.ExtNumNames, _, err = readStrings(extIndexes, extData, eh[fieldExtNumCount])
 	if err != nil {
 		return nil, err
 	}
 	extIndexes = extIndexes[eh[fieldExtNumCount]:]
 	// read extended string names
-	ti.ExtStringNames, _, _, err = readStrings(extIndexes, extData, eh[fieldExtStringCount])
+	ti.ExtStringNames, _, err = readStrings(extIndexes, extData, eh[fieldExtStringCount])
 	if err != nil {
 		return nil, err
 	}
@@ -379,12 +377,12 @@ func (ti *Terminfo) Num(i int) int {
 }
 
 // Printf formats the string cap i, interpolating parameters v.
-func (ti *Terminfo) Printf(i int, v ...any) string {
+func (ti *Terminfo) Printf(i int, v ...interface{}) string {
 	return Printf(ti.Strings[i], v...)
 }
 
 // Fprintf prints the string cap i to writer w, interpolating parameters v.
-func (ti *Terminfo) Fprintf(w io.Writer, i int, v ...any) {
+func (ti *Terminfo) Fprintf(w io.Writer, i int, v ...interface{}) {
 	Fprintf(w, ti.Strings[i], v...)
 }
 

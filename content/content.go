@@ -65,6 +65,7 @@ type Content struct {
 	AdobeDE               bool                 // config: Adobe DE page markers are being generated instead of NCX pageList
 	BacklinkTemplate      string               // config: backlink indicator template
 	MoreParaStr           string               // config: more paragraphs indicator
+	EmptyLineAsBR         bool                 // config: emit explicit line breaks for FB2 empty lines
 	ScreenWidth           int                  // config: target screen width for image sizing
 	ScreenHeight          int                  // config: target screen height for image sizing
 
@@ -286,6 +287,7 @@ func Prepare(ctx context.Context, r io.Reader, srcName string, outputFormat comm
 		FootnoteLabelTemplate: env.Cfg.Document.Footnotes.LabelTemplate,
 		BacklinkTemplate:      env.Cfg.Document.Footnotes.BacklinkTemplate,
 		MoreParaStr:           string(env.Cfg.Document.Footnotes.MoreParagraphs),
+		EmptyLineAsBR:         env.Cfg.Document.EmptyLineAsBR,
 		ScreenWidth:           env.Cfg.Document.Images.Screen.Width,
 		ScreenHeight:          env.Cfg.Document.Images.Screen.Height,
 		Book:                  book,

@@ -1133,8 +1133,11 @@ func appendFlowItems(
 				appendImageElement(parent, c, item.Image)
 			}
 		case fb2.FlowEmptyLine:
-			div := parent.CreateElement("div")
-			div.CreateAttr("class", "emptyline")
+			tag := "div"
+			if c.EmptyLineAsBR {
+				tag = "br"
+			}
+			parent.CreateElement(tag).CreateAttr("class", "emptyline")
 		case fb2.FlowSubtitle:
 			if item.Subtitle != nil {
 				c.KoboSpanNextParagraph()

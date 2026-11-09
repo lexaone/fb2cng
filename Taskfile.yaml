@@ -131,7 +131,7 @@ tasks:
 
   release:
     desc: Cross-builds release for all supported platforms
-    platforms: [linux]
+    platforms: [darwin]
     deps: [generate-project-version, get-dictionaries, get-sentences, get-pdf-fonts, generate-enums]
     cmds:
       - mkdir -p '{{.REL_BUILD_DIR}}'
@@ -142,6 +142,18 @@ tasks:
           GOOS: '{{with $arch := split "-" .ITEM}}{{$arch._0}}{{end}}'
           GOARCH: '{{with $arch := split "-" .ITEM}}{{$arch._1}}{{end}}'
           SUFFIX: '{{with $arch := split "-" .ITEM}}{{$arch._2}}{{end}}'
+
+  release-darwin:
+    desc: builds release for darwin
+    platforms: [darwin]
+    deps: [generate-project-version, get-dictionaries, get-sentences, get-pdf-fonts, generate-enums]
+    cmds:
+      - mkdir -p '{{.REL_BUILD_DIR}}'
+      - task: release-for-platform
+        vars:
+          GOOS: darwin
+          GOARCH: arm64
+          SUFFIX:
 
   release-for-platform:
     internal: true
@@ -220,7 +232,7 @@ tasks:
     cmds:
       - rm -f *.json
       - echo "{{.TATN}}Downloading NLTK training data from \"neurosnap/sentences\"{{.TOFF}}"
-      - wget -q -O - https://api.github.com/repos/neurosnap/sentences/tarball | tar xz --wildcards '*/data/*.json' --strip-components=2
+      - wget -q -O - https://api.github.com/repos/neurosnap/sentences/tarball | gtar xz --wildcards '*/data/*.json' --strip-components=2
       - gzip -q -f *.json
     status:
       - |

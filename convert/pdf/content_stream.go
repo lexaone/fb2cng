@@ -46,6 +46,16 @@ func pageContent(page pdfPage) []byte {
 	}
 	for _, border := range page.Borders {
 		writePDFPageBorder(&buf, border)
+		if border.Width <= 0 || border.Height <= 0 || border.LineWidth <= 0 {
+			continue
+		}
+		fmt.Fprintf(&buf, "q\n%s\n%s w\n%s %s %s %s re S\nQ\n",
+			border.Color.strokeOperator(),
+			docwriter.FormatNumber(border.LineWidth),
+			docwriter.FormatNumber(border.X),
+			docwriter.FormatNumber(border.Y),
+			docwriter.FormatNumber(border.Width),
+			docwriter.FormatNumber(border.Height))
 	}
 	for _, stroke := range page.Strokes {
 		if stroke.LineWidth <= 0 || (stroke.X1 == stroke.X2 && stroke.Y1 == stroke.Y2) {

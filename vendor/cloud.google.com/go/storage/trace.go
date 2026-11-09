@@ -84,12 +84,12 @@ func startSpanWithBucket(ctx context.Context, client *Client, bucket string, nam
 		meta, hit := cache.get(bucket)
 		if !hit {
 			placeholder := bucketMetadata{
-				resource:    fmt.Sprintf("%sprojects/_/buckets/%s", storageResourceNamePrefix, bucket),
+				resource:    fmt.Sprintf("projects/_/buckets/%s", bucket),
 				location:    "global",
 				placeholder: true,
 			}
 			cache.put(bucket, placeholder)
-			cache.fetchBackground(ctx, bucket)
+			cache.fetchBackground(bucket)
 			meta = placeholder
 		}
 		attrs := []attribute.KeyValue{

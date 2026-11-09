@@ -12,7 +12,10 @@ import (
 	"math"
 	"mime"
 	"path"
+	"strconv"
 	"strings"
+
+	"github.com/beevik/etree"
 
 	"github.com/disintegration/imaging"
 	"go.uber.org/zap"
@@ -212,6 +215,11 @@ func (bo *BinaryObject) PrepareImage(outputFormat common.OutputFmt, cover bool, 
 			return bi
 		}
 		if !requireJPEG && !cfg.RasterizeSVG {
+			if (!cover && cfg.Resize == "fit") || (cover && cfg.Cover.Resize == common.ImageResizeModeCrop) {
+				if err := resizeSVGBox(bi, cover, cfg); err != nil {
+					return bo.handleImageError(bi, "resize SVG", err, rasterizeBrokenSVG, cfg, log)
+				}
+			}
 			return bi
 		}
 		if cfg.RasterizeSVG || (outputFormat.IsKindle() && cfg.RemoveTransparency) {
@@ -268,6 +276,13 @@ func (bo *BinaryObject) PrepareImage(outputFormat common.OutputFmt, cover bool, 
 			bi.Dim.Width = img.Bounds().Dx()
 			bi.Dim.Height = img.Bounds().Dy()
 			imageChanged = true
+		case common.ImageResizeModeCrop:
+			img = resizeImageToCoverBox(img, w, h)
+			if img == nil {
+				return bo.handleImageError(bi, "resize", nil, rasterizeBrokenSVG, cfg, log)
+			}
+			bi.Dim.Width, bi.Dim.Height = img.Bounds().Dx(), img.Bounds().Dy()
+			imageChanged = true
 		case common.ImageResizeModeFit:
 			resizedImg := resizeImageToFitBox(img, w, h)
 			if resizedImg == nil {
@@ -281,7 +296,7 @@ func (bo *BinaryObject) PrepareImage(outputFormat common.OutputFmt, cover bool, 
 	}
 
 	// Scaling non-cover images
-	if !cover && cfg.ScaleFactor > 0.0 && cfg.ScaleFactor != 1.0 {
+	if !cover && cfg.Resize != "fit" && cfg.ScaleFactor > 0.0 && cfg.ScaleFactor != 1.0 {
 		resizedImg := imaging.Resize(img, 0, int(float64(img.Bounds().Dy())*cfg.ScaleFactor), imaging.Linear)
 		if resizedImg == nil {
 			return bo.handleImageError(bi, "resize", nil, rasterizeBrokenSVG, cfg, log)
@@ -289,6 +304,15 @@ func (bo *BinaryObject) PrepareImage(outputFormat common.OutputFmt, cover bool, 
 		img = resizedImg
 		bi.Dim.Width = img.Bounds().Dx()
 		bi.Dim.Height = img.Bounds().Dy()
+		imageChanged = true
+	}
+
+	if !cover && cfg.Resize == "fit" && (img.Bounds().Dx() > cfg.Screen.Width || img.Bounds().Dy() > cfg.Screen.Height) {
+		img = resizeImageToFitBox(img, cfg.Screen.Width, cfg.Screen.Height)
+		if img == nil {
+			return bo.handleImageError(bi, "resize", nil, rasterizeBrokenSVG, cfg, log)
+		}
+		bi.Dim.Width, bi.Dim.Height = img.Bounds().Dx(), img.Bounds().Dy()
 		imageChanged = true
 	}
 
@@ -368,6 +392,12 @@ func (bo *BinaryObject) PrepareImage(outputFormat common.OutputFmt, cover bool, 
 		imageChanged = true
 	}
 
+	// Go's JPEG encoder writes baseline sequential JPEG. Re-encode only
+	// non-baseline inputs; unchanged baseline images remain byte-identical.
+	if cfg.BaselineJPEG && imgType == "jpeg" && !isBaselineJPEG(bo.Data) {
+		imageChanged = true
+	}
+
 	if !imageChanged {
 		return bi
 	}
@@ -391,7 +421,7 @@ func (bo *BinaryObject) RasterizeSVG(outputFormat common.OutputFmt, cover bool, 
 	preserveSVGSizing := outputFormat == common.OutputFmtPdf
 	bi := &BookImage{MimeType: "image/svg+xml", Data: bo.Data, BuiltinVignette: bo.BuiltinVignette}
 	targetW, targetH := cfg.Screen.Width, 0
-	if preserveSVGSizing || bytes.Equal(bo.Data, notFoundImage) || bytes.Equal(bo.Data, brokenImage) {
+	if preserveSVGSizing || (!cover && cfg.Resize == "fit") || (cover && cfg.Cover.Resize == common.ImageResizeModeCrop) || bytes.Equal(bo.Data, notFoundImage) || bytes.Equal(bo.Data, brokenImage) {
 		targetW, targetH = 0, 0
 	}
 	var strokeFactor float64
@@ -428,6 +458,8 @@ func (bo *BinaryObject) RasterizeSVG(outputFormat common.OutputFmt, cover bool, 
 				return bo.handleImageError(bi, "resize", nil, normalizeToJPEG, cfg, log)
 			}
 			img = resized
+		case common.ImageResizeModeCrop:
+			img = resizeImageToCoverBox(img, w, h)
 		case common.ImageResizeModeFit:
 			img = resizeImageToFitBox(img, w, h)
 		}
@@ -435,12 +467,18 @@ func (bo *BinaryObject) RasterizeSVG(outputFormat common.OutputFmt, cover bool, 
 			return bo.handleImageError(bi, "resize", nil, normalizeToJPEG, cfg, log)
 		}
 	}
-	if !cover && !preserveSVGSizing && !bytes.Equal(bo.Data, brokenImage) && cfg.ScaleFactor > 0 && cfg.ScaleFactor != 1 {
+	if !cover && cfg.Resize != "fit" && !preserveSVGSizing && !bytes.Equal(bo.Data, brokenImage) && cfg.ScaleFactor > 0 && cfg.ScaleFactor != 1 {
 		resized := imaging.Resize(img, 0, int(float64(img.Bounds().Dy())*cfg.ScaleFactor), imaging.Linear)
 		if resized == nil {
 			return bo.handleImageError(bi, "resize", nil, normalizeToJPEG, cfg, log)
 		}
 		img = resized
+	}
+	if !cover && !preserveSVGSizing && cfg.Resize == "fit" && (img.Bounds().Dx() > cfg.Screen.Width || img.Bounds().Dy() > cfg.Screen.Height) {
+		img = resizeImageToFitBox(img, cfg.Screen.Width, cfg.Screen.Height)
+		if img == nil {
+			return bo.handleImageError(bi, "resize", nil, normalizeToJPEG, cfg, log)
+		}
 	}
 	bi.Dim.Width, bi.Dim.Height = img.Bounds().Dx(), img.Bounds().Dy()
 	data, err := bo.encodeImage(img, imgType, cfg, log)
@@ -498,4 +536,99 @@ func mimeToExt(mimeType string) string {
 		return strings.TrimPrefix(exts[0], ".")
 	}
 	return "img"
+}
+
+// resizeImageToCoverBox preserves the entire image: Crop in the reader, not here.
+// The limiting side is exact; ceil keeps the other side at least screen-sized.
+func resizeImageToCoverBox(img image.Image, screenW, screenH int) image.Image {
+	if img == nil || screenW <= 0 || screenH <= 0 {
+		return nil
+	}
+	w, h := img.Bounds().Dx(), img.Bounds().Dy()
+	if w <= 0 || h <= 0 {
+		return nil
+	}
+	if float64(w)/float64(h) >= float64(screenW)/float64(screenH) {
+		return imaging.Resize(img, int(math.Ceil(float64(w)*float64(screenH)/float64(h))), screenH, imaging.Lanczos)
+	}
+	return imaging.Resize(img, screenW, int(math.Ceil(float64(h)*float64(screenW)/float64(w))), imaging.Lanczos)
+}
+
+// Inspect JPEG marker segments, skipping APP payloads (which may contain thumbnails).
+func isBaselineJPEG(data []byte) bool {
+	if len(data) < 2 || data[0] != 0xff || data[1] != 0xd8 {
+		return false
+	}
+	for i := 2; i < len(data); {
+		if data[i] != 0xff {
+			return false
+		}
+		for i < len(data) && data[i] == 0xff {
+			i++
+		}
+		if i >= len(data) {
+			return false
+		}
+		marker := data[i]
+		i++
+		if marker == 0xc0 {
+			return true
+		}
+		if marker >= 0xc1 && marker <= 0xcf && marker != 0xc4 && marker != 0xc8 && marker != 0xcc {
+			return false
+		}
+		if marker == 0xda || marker == 0xd9 {
+			return false
+		}
+		if marker == 0x01 || marker >= 0xd0 && marker <= 0xd7 {
+			continue
+		}
+		if i+2 > len(data) {
+			return false
+		}
+		length := int(data[i])<<8 | int(data[i+1])
+		if length < 2 || i+length > len(data) {
+			return false
+		}
+		i += length
+	}
+	return false
+}
+
+// Native SVG keeps its vector contents; only its viewport is resized.
+func resizeSVGBox(bi *BookImage, cover bool, cfg *config.ImagesConfig) error {
+	w, h, err := imgutil.SVGImageSize(bi.Data, 0, 0)
+	if err != nil {
+		return err
+	}
+	if w <= 0 || h <= 0 || cfg.Screen.Width <= 0 || cfg.Screen.Height <= 0 {
+		return fmt.Errorf("invalid SVG or screen dimensions")
+	}
+	scale := math.Min(1, math.Min(float64(cfg.Screen.Width)/float64(w), float64(cfg.Screen.Height)/float64(h)))
+	if cover {
+		scale = math.Max(float64(cfg.Screen.Width)/float64(w), float64(cfg.Screen.Height)/float64(h))
+	}
+	nw, nh := max(1, int(math.Round(float64(w)*scale))), max(1, int(math.Round(float64(h)*scale)))
+	if cover {
+		nw, nh = max(cfg.Screen.Width, nw), max(cfg.Screen.Height, nh)
+	}
+	bi.Dim.Width, bi.Dim.Height = nw, nh
+	if nw == w && nh == h {
+		return nil
+	}
+	doc := etree.NewDocument()
+	if err := doc.ReadFromBytes(bi.Data); err != nil {
+		return err
+	}
+	root := doc.Root()
+	if root == nil || root.Tag != "svg" {
+		return fmt.Errorf("missing SVG root")
+	}
+	if root.SelectAttr("viewBox") == nil {
+		root.CreateAttr("viewBox", fmt.Sprintf("0 0 %d %d", w, h))
+	}
+	root.CreateAttr("width", strconv.Itoa(nw))
+	root.CreateAttr("height", strconv.Itoa(nh))
+	bi.Data, err = doc.WriteToBytes()
+	return err
 }

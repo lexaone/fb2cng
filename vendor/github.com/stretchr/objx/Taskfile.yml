@@ -4,20 +4,17 @@ tasks:
   default:
     deps: [test]
 
-  generate:
-    desc: Regenerates type_specific_codegen*.go from codegen/
-    cmds:
-      - go generate ./...
-
   lint:
-    desc: Runs golangci-lint
+    desc: Checks code style
     cmds:
-      - golangci-lint run ./...
+      - gofmt -d -s *.go
+      - go vet ./...
+    silent: true
 
   lint-fix:
-    desc: Runs golangci-lint and applies fixes
+    desc: Fixes code style
     cmds:
-      - golangci-lint run --fix ./...
+      - gofmt -w -s *.go
 
   test:
     desc: Runs go tests
