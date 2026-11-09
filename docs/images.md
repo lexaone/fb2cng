@@ -119,7 +119,8 @@ With `optimize: true`, source JPEGs are optionally re-encoded when their detecte
 exceeds `jpeg_quality_level`; existing lower-quality JPEGs are not improved by a higher value.
 PNG recompression is lossless; PDF skips this optional PNG recompression. Resizing or a
 required conversion can still trigger encoding, even when optimization is disabled. JPEG
-encoding also detects grayscale when optimization is enabled.
+encoding also detects grayscale when optimization is enabled. Setting `grayscale: true` forces
+grayscale JPEG encoding even for colorful sources, which suits monochrome E-Ink readers.
 
 ## SVG Artwork
 

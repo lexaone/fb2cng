@@ -259,6 +259,14 @@ document:
     # These conversions apply to covers as well as body images.
     optimize: true
 
+    # Force grayscale encoding of JPEG images, even when the source image is
+    # colorful. Useful for monochrome E-Ink readers where color information
+    # is discarded by the device anyway - reduces file size and memory
+    # footprint. Color values are converted to luminance. Ignored for PNG
+    # output. Independent of "optimize": when enabled, affected JPEGs are
+    # always re-encoded.
+    grayscale: false
+
     # JPEG quality level to use, percentage points (40% - 100%). For Kindle
     # output this also affects non-JPEG raster-to-JPEG conversion and SVG rasterization.
     jpeg_quality_level: 95

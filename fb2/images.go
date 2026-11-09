@@ -142,7 +142,7 @@ func (bo *BinaryObject) encodeImage(img image.Image, imgType string, cfg *config
 		}
 		return buf.Bytes(), nil
 	case "jpeg":
-		if cfg.Optimize && imgutil.IsGrayscale(img) {
+		if cfg.Grayscale || (cfg.Optimize && imgutil.IsGrayscale(img)) {
 			if _, ok := img.(*image.Gray); !ok {
 				gray := image.NewGray(img.Bounds())
 				draw.Draw(gray, gray.Bounds(), img, img.Bounds().Min, draw.Src)
@@ -395,6 +395,11 @@ func (bo *BinaryObject) PrepareImage(outputFormat common.OutputFmt, cover bool, 
 	// Go's JPEG encoder writes baseline sequential JPEG. Re-encode only
 	// non-baseline inputs; unchanged baseline images remain byte-identical.
 	if cfg.BaselineJPEG && imgType == "jpeg" && !isBaselineJPEG(bo.Data) {
+		imageChanged = true
+	}
+
+	// Force grayscale encoding even when the source image is colorful.
+	if cfg.Grayscale && imgType == "jpeg" {
 		imageChanged = true
 	}
 
