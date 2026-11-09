@@ -17,6 +17,7 @@
 *.pyc
 
 # build specific
+.task/
 /build/
 /build_*/
 /release/
